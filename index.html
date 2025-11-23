@@ -1,24 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <title>Test Phantom</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion Phantom Wallet (Mobile & Desktop)</title>
   <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    button {
+      background: #9945FF;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    #status {
+      margin: 20px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #f0f0f0;
+    }
+  </style>
 </head>
 <body>
-  <button onclick="connectPhantom()">Connect Phantom</button>
+  <h1>Connexion Phantom Wallet</h1>
+  <p>Cliquez ci-dessous pour connecter votre wallet Phantom (mobile ou desktop).</p>
+  <button onclick="connectPhantom()">Connecter Phantom</button>
+  <div id="status">En attente de connexion...</div>
+
   <script>
+    // Fonction principale de connexion
     async function connectPhantom() {
-      if (window.solana && window.solana.isPhantom) {
-        try {
+      try {
+        if (window.solana && window.solana.isPhantom) {
+          // Cas Desktop/Extension
+          document.getElementById('status').textContent = "Phantom détecté (desktop). Connexion en cours...";
           const response = await window.solana.connect();
-          console.log("Public Key:", window.solana.publicKey.toString());
-        } catch (err) {
-          console.error("Error:", err);
+          document.getElementById('status').textContent = "Connecté avec succès ! Adresse : " + response.publicKey.toString();
+        } else {
+          // Cas Mobile
+          document.getElementById('status').textContent = "Phantom non détecté. Redirection vers l'application mobile...";
+          connectPhantomMobile();
         }
-      } else {
-        alert("Phantom not found!");
+      } catch (err) {
+        document.getElementById('status').textContent = "Erreur : " + err.message;
+        console.error(err);
       }
     }
+
+    // Fonction pour mobile (Deep Link)
+    function connectPhantomMobile() {
+      const dappURL = encodeURIComponent(window.location.href);
+      const phantomMobileURL = `https://phantom.app/ul/v1/connect?dapp=${dappURL}`;
+      window.location.href = phantomMobileURL;
+    }
+
+    // Vérifie si Phantom est déjà connecté au chargement de la page
+    window.addEventListener('load', function() {
+      if (window.solana && window.solana.isConnected) {
+        document.getElementById('status').textContent = "Déjà connecté : " + window.solana.publicKey.toString();
+      }
+    });
   </script>
 </body>
 </html>
