@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
   <title>Connexion en cours…</title>
   <style>
     body {
@@ -25,37 +24,36 @@
       border-top: 6px solid #a855f7;
       border-radius: 50%;
       animation: spin 1s linear infinite;
+      aria-label: "Chargement en cours";
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     h2 { font-size: 1.5rem; margin: 0; }
     p { margin: 0; color: #aaa; font-size: 0.95rem; }
+    #error { color: red; display: none; }
   </style>
 </head>
 <body>
-
   <div class="spinner"></div>
   <h2>Connexion à PumpLaunch…</h2>
   <p>Redirection en cours, ne ferme pas cette page</p>
+  <div id="error">Échec de la connexion. Redirection...</div>
 
   <script>
-    // Cette page est ouverte par Phantom après la validation de la connexion
-    setTimeout(async () => {
-      try {
-        // Phantom injecte automatiquement le provider quand il revient ici
-        if (window.solana && window.solana.isPhantom) {
-          // Reconnexion silencieuse (seulement si déjà approuvé)
-          await window.solana.connect({ onlyIfTrusted: true }).catch(() => {});
-        }
-      } catch (e) {
-        // On ignore les erreurs, on redirige quand même
-      } finally {
-        // Retour immédiat vers la page principale
-        window.location.replace(location.origin + "/");
-      }
-    }, 800);
-  </script>
+    if (!window.solana || !window.solana.isPhantom) {
+      window.location.replace("https://votre-domaine.com/");
+    } else {
+      window.solana.on("connect", () => {
+        window.location.replace("https://votre-domaine.com/");
+      });
 
+      window.solana.connect({ onlyIfTrusted: true })
+        .catch(() => {
+          document.getElementById("error").style.display = "block";
+          setTimeout(() => {
+            window.location.replace("https://votre-domaine.com/");
+          }, 1500);
+        });
+    }
+  </script>
 </body>
 </html>
