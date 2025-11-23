@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const txSignature = urlParams.get('tx');
+
+        if (txSignature) {
+            localStorage.setItem('phantomTxSignature', txSignature);
+            window.opener.postMessage({ type: 'phantom-connected', signature: txSignature }, '*');
+            window.close();
+        } else {
+            alert("Connexion annulée");
+            window.close();
+        }
+    </script>
+</head>
+<body></body>
+</html>
