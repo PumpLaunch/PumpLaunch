@@ -7,16 +7,18 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
   <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@project-serum/serum@0.0.0-20220608.151637554.da65e6c3/dist/serum.umd.js"></script>
-  <script src="https://unpkg.com/@metaplex-foundation/metaplex-program-library/js/dist/metaplex.umd.js"></script>
-  <script src="https://unpkg.com/@raydium-io/raydium-sdk/dist/raydium.umd.js"></script>
+  <!-- Metaplex UMI for modern metadata handling -->
+  <script src="https://unpkg.com/@metaplex-foundation/umi@0.8.10/dist/index.iife.js"></script>
+  <script src="https://unpkg.com/@metaplex-foundation/umi-bundle-defaults@0.8.10/dist/index.iife.js"></script>
+  <!-- NFT.Storage for uploading images and metadata to IPFS -->
+  <script src="https://cdn.jsdelivr.net/npm/nft.storage@7.1.1/dist/index.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
     .animate-spin { animation: spin 1s linear infinite; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .gradient-text { background: linear-gradient(to right, #f97316, #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .error { color: #ef4444; background: rgba(239,68,68,0.1); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; display: none; }
+    .error { color: #ef4444; background: rgba(239,68,68,0.1); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; display: none; border: 1px solid rgba(239,68,68,0.3); }
   </style>
 </head>
 <body class="min-h-screen bg-black text-white">
@@ -24,7 +26,7 @@
   <header class="border-b border-white/10 backdrop-blur-xl bg-black/70 fixed top-0 w-full z-50">
     <div class="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
       <div class="flex items-center space-x-3">
-        <span class="text-3xl">Fire</span>
+        <span class="text-3xl">🔥</span>
         <h1 class="text-2xl font-bold gradient-text">PumpLaunch</h1>
       </div>
       <div id="walletZone">
@@ -32,7 +34,7 @@
           Connecter le wallet
         </button>
       </div>
-      <select id="networkSelector" class="bg-black/50 text-white px-4 py-2 rounded-lg">
+      <select id="networkSelector" class="bg-black/50 text-white px-4 py-2 rounded-lg border border-white/20">
         <option value="mainnet-beta">Mainnet Beta</option>
         <option value="devnet">Devnet</option>
       </select>
@@ -46,7 +48,7 @@
         <span class="gradient-text">Liquidité 100% personnalisée</span>
       </h2>
       <p class="text-xl text-gray-400 max-w-2xl mx-auto">
-        Tu choisis exactement le montant de SOL et le pourcentage du supply à mettre en liquidité
+        Tu choisis exactement le montant de SOL et le pourcentage du supply à mettre en liquidité.
       </p>
     </div>
 
@@ -55,12 +57,24 @@
       <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-10 border border-white/10 shadow-2xl">
         <form id="tokenForm" class="space-y-8">
           <div class="grid md:grid-cols-2 gap-8">
-            <input name="name" required placeholder="Nom du token" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-lg"/>
-            <input name="symbol" required maxlength="10" placeholder="Symbole" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-lg"/>
+            <input name="name" required placeholder="Nom du token" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-lg placeholder-gray-500"/>
+            <input name="symbol" required maxlength="10" placeholder="Symbole" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-lg placeholder-gray-500"/>
           </div>
-          <textarea name="description" rows="3" placeholder="Description (facultatif)" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4"></textarea>
+          <textarea name="description" rows="3" placeholder="Description (facultatif)" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 placeholder-gray-500"></textarea>
 
-          <div class="bg-white/10 rounded-2xl p-6 space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-4">Image du token</label>
+            <label id="dropZone" class="block border-4 border-dashed border-white/30 rounded-3xl p-16 text-center cursor-pointer hover:border-purple-500 transition">
+              <div class="text-6xl mb-4">🖼️</div>
+              <p class="text-lg text-gray-400">Clique ou glisse une image ici</p>
+              <input type="file" id="imageInput" accept="image/*" required class="hidden"/>
+            </label>
+            <div id="imagePreview" class="mt-8 hidden text-center">
+              <img id="previewImg" class="w-48 h-48 object-cover rounded-2xl shadow-2xl border-4 border-purple-500/50 mx-auto"/>
+            </div>
+          </div>
+
+          <div class="bg-white/10 rounded-2xl p-6 space-y-6 border border-white/20">
             <h3 class="text-xl font-bold text-purple-400">Paramètres de liquidité Raydium</h3>
             <div class="grid md:grid-cols-2 gap-6">
               <div>
@@ -88,7 +102,8 @@
     <div id="loading" class="hidden text-center py-32">
       <div class="inline-block animate-spin rounded-full h-24 w-24 border-t-8 border-purple-500 mb-10"></div>
       <h3 class="text-4xl font-bold mb-4">Lancement en cours...</h3>
-      <p class="text-xl text-gray-400">45–90 secondes</p>
+      <p class="text-xl text-gray-400">Cela peut prendre 60 à 120 secondes.</p>
+      <p class="text-sm text-gray-500 mt-2">Ne fermez pas cette fenêtre.</p>
     </div>
 
     <div id="success" class="hidden text-center py-32 max-w-4xl mx-auto px-6">
@@ -97,17 +112,17 @@
       <div class="grid md:grid-cols-2 gap-8">
         <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-8 border border-white/10">
           <p class="text-gray-400 mb-3">Mint du token</p>
-          <p id="mintAddr" class="font-mono text-xl text-green-400 break-all"></p>
+          <p id="mintAddr" class="font-mono text-sm text-green-400 break-all"></p>
         </div>
         <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-8 border border-white/10">
           <p class="text-gray-400 mb-3">Pool Raydium</p>
-          <p class="font-mono text-xl text-purple-400" id="poolAddr">Live – Voir sur DexScreener</p>
+          <p id="poolAddr" class="font-mono text-sm text-purple-400 break-all">Live – Voir sur DexScreener</p>
         </div>
       </div>
       <div class="mt-10 flex flex-wrap gap-6 justify-center">
         <a id="solscan" target="_blank" class="px-8 py-4 bg-purple-600 rounded-2xl hover:bg-purple-700 font-bold">Solscan</a>
         <a id="dexscreener" target="_blank" class="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-2xl hover:scale-105 font-bold">DexScreener</a>
-        <a id="raydium" target="_blank" class="px-8 py-4 bg-green-600 rounded-2xl hover:bg-green-700 font-bold">Trader</a>
+        <a id="raydium" target="_blank" class="px-8 py-4 bg-green-600 rounded-2xl hover:bg-green-700 font-bold">Trader sur Raydium</a>
       </div>
       <button onclick="location.reload()" class="mt-12 px-12 py-5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-2xl hover:scale-105 font-bold text-xl">
         Lancer un autre token
@@ -116,15 +131,23 @@
   </main>
 
   <script>
+    // --- CONFIGURATION ---
     const TON_ADRESSE = "3Kmm8XSG1gwp8t3FZ4KG3edt7FxgTHitcP9zk54fByBv";
-    const FRAIS = 0.05 * 1e9;
+    const FRAIS_SERVICE = 0.05 * 1e9; // 0.05 SOL
+    // IMPORTANT: Pour un usage en production, vous devez utiliser votre propre clé API NFT.Storage.
+    // Ne jamais exposer une clé API secrète côté client dans une vraie application.
+    const NFT_STORAGE_API_KEY = "YOUR_NFT_STORAGE_API_KEY"; // Remplacez par votre clé
 
+    // --- VARIABLES GLOBALES ---
     let provider = null;
     let connection = null;
     let network = "mainnet-beta";
+    let imageFile = null;
+    let umi = null; // Metaplex UMI instance
 
+    // --- FONCTIONS D'INTERFACE UTILISATEUR ---
     function tronquer(addr) {
-      const s = addr.toBase58();
+      const s = typeof addr === 'string' ? addr : addr.toBase58();
       return s.slice(0, 6) + "..." + s.slice(-4);
     }
 
@@ -132,7 +155,7 @@
       document.getElementById("walletZone").innerHTML = `
         <div class="flex items-center space-x-3 bg-white/10 backdrop-blur-xl px-6 py-3 rounded-full border border-green-500/50">
           <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-          <span class="font-mono text-green-400">\${tronquer(pubkey)}</span>
+          <span class="font-mono text-green-400">${tronquer(pubkey)}</span>
           <span class="text-xs text-gray-400">connecté</span>
         </div>
       `;
@@ -140,234 +163,236 @@
       document.getElementById("createBtn").classList.remove("opacity-50", "cursor-not-allowed");
     }
 
+    function showError(message, details = null) {
+      const errorDiv = document.getElementById("error");
+      errorDiv.innerHTML = `<strong>${message}</strong>`;
+      if (details) {
+        errorDiv.innerHTML += `<details class="mt-2"><summary class="cursor-pointer">Détails techniques</summary><pre class="mt-2 text-xs bg-black/30 p-2 rounded">${details}</pre></details>`;
+      }
+      errorDiv.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById("error").style.display = 'none';
+    }
+
+    // --- VALIDATION DU FORMULAIRE ---
+    function validateForm() {
+      const name = document.querySelector("[name='name']").value.trim();
+      const symbol = document.querySelector("[name='symbol']").value.trim();
+      const solAmount = parseFloat(document.getElementById("solAmount").value);
+      const percent = parseFloat(document.getElementById("percentSupply").value);
+
+      if (!name || name.length < 3) { showError("Le nom du token doit contenir au moins 3 caractères."); return false; }
+      if (!symbol || symbol.length < 2) { showError("Le symbole doit contenir au moins 2 caractères."); return false; }
+      if (!imageFile) { showError("Veuillez télécharger une image pour le token."); return false; }
+      if (isNaN(solAmount) || solAmount < 0.01) { showError("Le montant minimum de SOL est 0.01."); return false; }
+      if (isNaN(percent) || percent < 5 || percent > 99) { showError("Le pourcentage de supply doit être entre 5% et 99%."); return false; }
+      if (NFT_STORAGE_API_KEY === "YOUR_NFT_STORAGE_API_KEY") { showError("Une clé API NFT.Storage est requise pour le code de démonstration.", "Veuillez remplacer 'YOUR_NFT_STORAGE_API_KEY' dans le code."); return false; }
+
+      hideError();
+      return true;
+    }
+
+    // --- LOGIQUE BLOCKCHAIN ---
+
+    async function updateNetwork() {
+      network = document.getElementById("networkSelector").value;
+      connection = new solanaWeb3.Connection(`https://api.${network}.solana.com`, "confirmed");
+      // Initialiser UMI pour Metaplex avec le bon réseau
+      umi = window.metaplex.Umi.create(window.metaplex.defaultUmiRpcTransport(`https://api.${network}.solana.com`));
+    }
+
     async function connecter() {
-      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      if (mobile) {
-  const appUrl = location.origin;
-  const callback = encodeURIComponent(location.origin + "/phantom-callback.html");
-  window.location.href = `https://phantom.app/ul/v1/connect?app_url=\${appUrl}&redirect_link=\${callback}&cluster=\${network}`;
-  return;
-      }
-
-      if (window.solana?.isPhantom) {
-        provider = window.solana;
-      } else if (window.solflare?.isSolflare) {
-        provider = window.solflare;
-      } else if (window.backpack?.isBackpack) {
-        provider = window.backpack;
-      } else {
-        alert("Veuillez installer Phantom, Solflare ou Backpack.");
-        return;
-      }
+      if (window.solana?.isPhantom) provider = window.solana;
+      else if (window.solflare?.isSolflare) provider = window.solflare;
+      else if (window.backpack?.isBackpack) provider = window.backpack;
+      else { showError("Veuillez installer un portefeuille comme Phantom, Solflare ou Backpack."); return; }
 
       try {
-        const res = await provider.connect({ onlyIfTrusted: true });
+        const res = await provider.connect();
         afficherConnecte(res.publicKey);
       } catch (e) {
         console.error("Connexion échouée", e);
-        document.getElementById("error").textContent = "Connexion échouée. Veuillez vérifier votre portefeuille et approuvez la connexion.";
-        document.getElementById("error").style.display = "block";
+        showError("Connexion échouée. Veuillez vérifier votre portefeuille et approuver la connexion.", e.message);
       }
     }
 
-    if (window.location.pathname.includes("phantom-callback")) {
-      setTimeout(async () => {
-        if (window.solana?.isPhantom) {
-          try {
-            await window.solana.connect({ onlyIfTrusted: true });
-            afficherConnecte(window.solana.publicKey);
-          } catch (e) {
-            console.error("Phantom callback reconnect failed", e);
-            alert("Connexion Phantom échouée. Veuillez réessayer.");
-          }
-        }
-        window.location.href = location.origin;
-      }, 3000);
-    }
-
-    function updateNetwork() {
-      network = document.getElementById("networkSelector").value;
-      connection = new solanaWeb3.Connection(`https://api.\${network}.solana.com`, "confirmed");
-    }
-
-    async function payerFee() {
-      const transaction = new solanaWeb3.Transaction().add(
-        solanaWeb3.SystemProgram.transfer({
-          fromPubkey: provider.publicKey,
-          toPubkey: new solanaWeb3.PublicKey(TON_ADRESSE),
-          lamports: FRAIS
-        })
-      );
+    async function uploadToNFTStorage(file) {
+      const nftstorage = new NFTStorage({ token: NFT_STORAGE_API_KEY });
       try {
-        await provider.sendAndConfirm(transaction);
+        const cid = await nftstorage.storeBlob(file);
+        return `https://ipfs.io/ipfs/${cid}`;
       } catch (error) {
-        throw new Error("Paiement des frais échoué: " + error.message);
+        throw new Error("Échec du téléchargement de l'image sur NFT.Storage: " + error.message);
       }
     }
 
-    async function createTokenMint(owner) {
+    async function createTokenMint(owner, decimals = 6) {
       const mint = new solanaWeb3.Keypair();
-      const mintPubkey = mint.publicKey;
-      
+      const mintRent = await connection.getMinimumBalanceForRentExemption(solanaWeb3.MintLayout.span);
       const transaction = new solanaWeb3.Transaction().add(
         solanaWeb3.SystemProgram.createAccount({
           fromPubkey: owner,
-          newAccountPubkey: mintPubkey,
-          lamports: await connection.getMinimumBalanceForRentExempt(82),
-          space: 82,
-          programId: solanaWeb3.tokenProgram.SPL_TOKEN_PROGRAM_ID,
+          newAccountPubkey: mint.publicKey,
+          lamports: mintRent,
+          space: solanaWeb3.MintLayout.span,
+          programId: solanaWeb3.TokenProgramId,
         }),
-        solanaWeb3.tokenProgram.createInitializeMintInstruction(
-          mintPubkey,
-          6,
+        solanaWeb3.Token.createInitMintInstruction(
+          solanaWeb3.TokenProgramId,
+          mint.publicKey,
+          decimals,
           owner,
           owner
-        ),
-        solanaWeb3.tokenProgram.createMintToInstruction(
-          mintPubkey,
-          solanaWeb3.tokenProgram.getAssociatedTokenAddressSync(owner, mintPubkey),
-          owner,
-          [],
-          1000000000 * 1e6 // 1 million tokens
         )
       );
-      
-      try {
+      const signature = await provider.sendAndConfirm(transaction, [mint]);
+      return { mintPubkey: mint.publicKey, signature };
+    }
+
+    async function createTokenAccount(owner, mintPubkey) {
+        const transaction = new solanaWeb3.Transaction().add(
+            solanaWeb3.Token.createAssociatedTokenAccountInstruction(
+                solanaWeb3.TokenProgramId,
+                owner,
+                mintPubkey,
+                owner
+            )
+        );
         const signature = await provider.sendAndConfirm(transaction);
-        return { mintPubkey, mint };
-      } catch (error) {
-        throw new Error("Création du mint échouée: " + error.message);
-      }
+        return signature;
     }
 
-    async function createMetadata(mint, owner, name, symbol) {
-      const metadataPDA = solanaWeb3.PublicKey.findProgramAddressSync(
-        [Buffer.from("metadata"), new solanaWeb3.Public("metaqbxxUerdq28cj1RcLyL9245VcMcwNthP5q2wv5D").toBuffer(), mint.toBuffer()],
-        new solanaWeb3.PublicKey("metaqbxxUerdq28cj1RcLyL9245VcMcwNthP5q2wv5D")
-      )[0];
-
-      const metadataInstruction = metaplex.helpers.createCreateMetadataAccountV3Instruction({
-        metadata: metadataPDA,
-        mint,
-        mintAuthority: owner,
-        pdaAuthority: metadataPDA,
-        updateAuthority: owner,
-        data: {
-          name,
-          symbol,
-          uri: "https://example.com/metadata.json",
-          sellerFeeBasePoints: 0,
-          creators: null,
-          collection: null,
-          usableAddress: null,
-          collectionDetails: null,
-        },
-        isMutable: true,
-      });
-
-      const transaction = new solanaWeb3.Transaction().add(metadataInstruction);
-      
-      try {
-        await provider.sendAndConfirm(transaction);
-        return metadataPDA;
-      } catch (error) {
-        throw new Error("Création des métadonnées échouée: " + error.message);
-      }
+    async function mintTokensToAccount(mintPubkey, destination, amount, owner) {
+        const transaction = new solanaWeb3.Transaction().add(
+            solanaWeb3.Token.createMintToInstruction(
+                solanaWeb3.TokenProgramId,
+                mintPubkey,
+                destination,
+                owner,
+                [],
+                amount
+            )
+        );
+        const signature = await provider.sendAndConfirm(transaction);
+        return signature;
     }
 
-    async function createRaydiumPool(mint, owner) {
-      try {
-        const rayPool = await raydium.Pool.findPool(mint, connection, owner);
-        if (!rayPool) {
-          throw new Error("Pool introuvable");
-        }
-        return rayPool;
-      } catch (error) {
-        throw new Error("Création du pool Raydium échouée: " + error.message);
-      }
+    async function createAndUploadMetadata(name, symbol, description, imageUri) {
+      const metadata = {
+        name: name,
+        symbol: symbol,
+        description: description,
+        image: imageUri,
+        // Ajouter d'autres champs si nécessaire : creators, sellerFeeBasisPoints, etc.
+      };
+
+      const blob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+      const nftstorage = new NFTStorage({ token: NFT_STORAGE_API_KEY });
+      const cid = await nftstorage.storeBlob(blob);
+      return `https://ipfs.io/ipfs/${cid}`;
     }
 
-    async function fundPool(owner, mint, pool, solAmount, tokenAmount) {
-      const tokenATA = solanaWeb3.tokenProgram.getAssociatedTokenAddressSync(owner, mint);
-      const poolTokenATA = solanaWeb3.tokenProgram.getAssociatedTokenAddressSync(pool, mint);
-      
-      const transaction = new solanaWeb3.Transaction().add(
-        solanaWeb3.tokenProgram.createTransferInstruction(
-          tokenATA,
-          poolTokenATA,
-          owner,
-          tokenAmount
-        ),
-        solanaWeb3.SystemProgram.transfer({
-          fromPubkey: owner,
-          toPubkey: pool,
-          lamports: solAmount * 1e9
-        })
-      );
-      
-      try {
-        await provider.sendAndConfirm(transaction);
-        return true;
-      } catch (error) {
-        throw new Error("Fond de pool échoué: " + error.message);
-      }
+    // --- PLACEHOLDERS POUR LA LOGIQUE RAYDIUM COMPLEXE ---
+    // NOTE: La création d'un pool Raydium est une opération très complexe qui implique de nombreuses
+    // transactions et calculs de PDA (Program Derived Address). Ce code est un placeholder.
+    // Une implémentation complète nécessiterait d'utiliser le Raydium SDK de manière approfondie.
+    async function createRaydiumPool(mintPubkey, owner, solAmount) {
+      console.log("Placeholder: Création du pool Raydium...");
+      // Dans une vraie implémentation, vous utiliseriez ici le Raydium SDK pour:
+      // 1. Créer un compte de pool.
+      // 2. Créer un compte de liquidity pool.
+      // 3. Initialiser le pool avec les bons comptes (mint du token, mint de SOL, etc.).
+      // Cette fonction retournerait l'adresse du pool créé.
+      throw new Error("La création du pool Raydium est un placeholder et n'est pas implémentée dans cette démo.");
     }
 
-    document.getElementById("tokenForm").onsubmit = async e => {
+    async function fundPool(poolAddress, owner, mintPubkey, solAmount, tokenAmount) {
+      console.log("Placeholder: Financement du pool...");
+      // Dans une vraie implémentation, vous utiliseriez le Raydium SDK pour:
+      // 1. Approver le pool à dépenser vos tokens.
+      // 2. Appeler la fonction 'addLiquidity' du programme Raydium.
+      throw new Error("Le financement du pool est un placeholder et n'est pas implémenté dans cette démo.");
+    }
+
+
+    // --- GESTION ÉVÉNEMENTIELLE ---
+    document.getElementById("tokenForm").onsubmit = async (e) => {
       e.preventDefault();
-      if (!provider?.publicKey) return alert("Veuillez connecter un portefeuille");
+      if (!provider?.publicKey) { showError("Veuillez connecter un portefeuille."); return; }
+      if (!validateForm()) return;
 
       const form = document.getElementById("form");
       const loading = document.getElementById("loading");
       const success = document.getElementById("success");
-      const errorDiv = document.getElementById("error");
-      
+
       form.classList.add("hidden");
       loading.classList.remove("hidden");
-      errorDiv.style.display = "none";
+      hideError();
 
       try {
-        await payerFee();
-        
-        const name = document.querySelector("[name='name']").value;
-        const symbol = document.querySelector("[name='symbol']").value;
+        const name = document.querySelector("[name='name']").value.trim();
+        const symbol = document.querySelector("[name='symbol']").value.trim();
+        const description = document.querySelector("[name='description']").value.trim();
         const solAmount = parseFloat(document.getElementById("solAmount").value);
         const percent = parseFloat(document.getElementById("percentSupply").value);
-        
-        const { mintPubkey, mint } = await createTokenMint(provider.publicKey);
-        await createMetadata(mintPubkey, provider.publicKey, name, symbol);
-        
-        const pool = await createRaydiumPool(mintPubkey, provider.publicKey);
-        const tokenAmount = Math.floor((1000000000 * percent) / 100);
-        
-        await fundPool(provider.publicKey, mintPubkey, pool, solAmount, tokenAmount);
-        
+
+        // 1. Payer les frais du service
+        const feeTx = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: provider.publicKey,
+            toPubkey: new solanaWeb3.PublicKey(TON_ADRESSE),
+            lamports: FRAIS_SERVICE,
+          })
+        );
+        await provider.sendAndConfirm(feeTx);
+
+        // 2. Créer le Mint du Token
+        const { mintPubkey } = await createTokenMint(provider.publicKey);
+
+        // 3. Créer le Token Account pour l'utilisateur
+        const userTokenAccount = await solanaWeb3.getAssociatedTokenAddress(mintPubkey, provider.publicKey);
+        await createTokenAccount(provider.publicKey, mintPubkey);
+
+        // 4. Mint des tokens vers le compte de l'utilisateur
+        const totalSupply = 1_000_000_000; // 1 milliard de tokens
+        const liquidityTokens = Math.floor((totalSupply * percent) / 100);
+        await mintTokensToAccount(mintPubkey, userTokenAccount, liquidityTokens, provider.publicKey);
+
+        // 5. Uploader l'image et créer les métadonnées
+        const imageUri = await uploadToNFTStorage(imageFile);
+        const metadataUri = await createAndUploadMetadata(name, symbol, description, imageUri);
+
+        // 6. (Placeholder) Créer le pool Raydium
+        const poolAddress = await createRaydiumPool(mintPubkey, provider.publicKey, solAmount);
+
+        // 7. (Placeholder) Financer le pool
+        await fundPool(poolAddress, provider.publicKey, mintPubkey, solAmount, liquidityTokens);
+
+        // 8. Afficher le succès
         loading.classList.add("hidden");
         success.classList.remove("hidden");
         document.getElementById("mintAddr").textContent = mintPubkey.toBase58();
-        document.getElementById("poolAddr").textContent = pool.toBase58();
-        
-        document.getElementById("solscan").href = `https://solscan.io/token/\${mintPubkey}?cluster=\${network}`;
-        document.getElementById("dexscreener").href = `https://dexscreener.com/solana/\${pool}`;
-        document.getElementById("raydium").href = `https://raydium.io/exchange/\${pool}`;
-        
+        document.getElementById("poolAddr").textContent = poolAddress.toBase58();
+
+        document.getElementById("solscan").href = `https://solscan.io/token/${mintPubkey.toBase58()}?cluster=${network}`;
+        document.getElementById("dexscreener").href = `https://dexscreener.com/solana/${poolAddress.toBase58()}`;
+        document.getElementById("raydium").href = `https://raydium.io/swap/?inputMint=sol&outputMint=${mintPubkey.toBase58()}`;
+
       } catch (error) {
-        console.error("Erreur lors de la création", error);
-        errorDiv.textContent = error.message;
-        errorDiv.style.display = "block";
+        console.error("Erreur lors de la création:", error);
+        showError("Une erreur est survenue : " + error.message, error.stack);
         loading.classList.add("hidden");
         form.classList.remove("hidden");
-        document.getElementById("createBtn").disabled = false;
       }
     };
 
+    document.getElementById("connectBtn").onclick = connecter;
     document.getElementById("networkSelector").onchange = updateNetwork;
-    updateNetwork();
 
-    document.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("connectBtn").onclick = connecter;
-    });
-  </script>
-</body>
-</html>
+    // Gestion de l'upload d'image
+    document.getElementById("imageInput").onchange = (e) => {
+      if (e.target.files[0]) {
+        imageFile = e.target.files[0];
+        const reader = new
