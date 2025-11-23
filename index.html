@@ -135,9 +135,10 @@
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       if (mobile) {
-        const callback = encodeURIComponent(location.origin + "/phantom-callback.html");
-        window.location.href = `https://phantom.app/ul/v1/connect?app_url=\${encodeURIComponent(location.origin)}&redirect_link=\${callback}&cluster=mainnet-beta`;
-        return;
+  const appUrl = location.origin; // Ne pas encoder ici
+  const callback = encodeURIComponent(location.origin + "/phantom-callback.html");
+  window.location.href = `https://phantom.app/ul/v1/connect?app_url=\${appUrl}&redirect_link=\${callback}&cluster=mainnet-beta`;
+  return;
       }
 
       if (window.solana?.isPhantom) {
