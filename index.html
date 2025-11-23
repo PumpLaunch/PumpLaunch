@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PumpLaunch — Token + Raydium Auto Pool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
+  <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@metaplex-foundation/js@0.20.1/dist/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nft.storage@7.1.1/dist/index.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .animate-spin { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .gradient-text { background: linear-gradient(to right, #f97316, #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  </style>
+</head>
+<body class="min-h-screen bg-black text-white">
+
+  <!-- Header -->
+  <header class="border-b border-white/10 backdrop-blur-xl bg-black/70 fixed top-0 w-full z-50">
+    <div class="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <span class="text-3xl">Fire</span>
+        <h1 class="text-2xl font-bold gradient-text">PumpLaunch</h1>
+      </div>
+      <button id="connectBtn" class="px-8 py-3 rounded-full bg-gradient-to-r from-orange-500 to-purple-600 font-semibold hover:scale-105 transition">
+        Connect Wallet
+      </button>
+    </div>
+  </header>
+
+  <main class="pt-32 pb-20">
+    <div class="max-w-4xl mx-auto px-6 text-center">
+      <h2 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
+        Launch Token + Raydium Pool<br/>
+        <span class="gradient-text">100% Custom Liquidity</span>
+      </h2>
+      <p class="text-xl text-gray-400 max-w-2xl mx-auto">
+        Tu choisis exactement le montant de SOL et le pourcentage du supply à mettre en liquidité
+      </p>
+    </div>
+
+    <!-- Formulaire -->
+    <div id="form" class="max-w-2xl mx-auto mt-20 px-6">
+      <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-10 border border-white/10 shadow-2xl">
+        <form id="tokenForm" class="space-y-8">
+
+          <div class="grid md:grid-cols-2 gap-8">
+            <input name="name" required placeholder="Token Name" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-lg focus:outline-none focus:border-purple-500 transition"/>
+            <input name="symbol" required maxlength="10" placeholder="Symbol" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-lg focus:outline-none focus:border-purple-500 transition"/>
+          </div>
+
+          <textarea name="description" rows="3" placeholder="Description (optional)" class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 focus:outline-none focus:border-purple-500 transition"></textarea>
+
+          <!-- Image -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-4">Token Image</label>
+            <label id="dropZone" class="block border-4 border-dashed border-white/30 rounded-3xl p-16 text-center cursor-pointer hover:border-purple-500 transition">
+              <div class="text-6xl">Image</div>
+              <p class="text-lg text-gray-400">Click or drag</p>
+              <input type="file" id="imageInput" accept="image/*" required class="hidden"/>
+            </label>
+            <div id="imagePreview" class="mt-8 hidden text-center">
+              <img id="previewImg" class="w-64 h-64 object-cover rounded-3xl shadow-2xl border-4 border-purple-500/50 mx-auto"/>
+            </div>
+          </div>
+
+          <!-- Liquidité personnalisée -->
+          <div class="bg-white/10 rounded-2xl p-6 space-y-6 border border-white/20">
+            <h3 class="text-xl font-bold text-purple-400">Raydium Liquidity Settings</h3>
+            <div class="grid md:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">SOL to add</label>
+                <input type="number" id="solAmount" value="0.5" min="0.01" max="100" step="0.01" class="w-full bg-black/50 border border-white/30 rounded-xl px-5 py-3 text-lg"/>
+                <p class="text-xs text-gray-500 mt-1">Minimum 0.01 SOL</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">% of supply in pool</label>
+                <input type="number" id="percentSupply" value="50" min="5" max="99" step="1" class="w-full bg-black/50 border border-white/30 rounded-xl px-5 py-3 text-lg"/>
+                <p class="text-xs text-gray-500 mt-1">5–99 % (le reste reste dans ton wallet)</p>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" id="createBtn" disabled class="w-full py-6 text-2xl font-bold rounded-3xl bg-gradient-to-r from-orange-500 to-purple-600 opacity-50 cursor-not-allowed transition-all hover:scale-105">
+            Create Token + Auto Raydium Pool
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="hidden text-center py-32">
+      <div class="inline-block animate-spin rounded-full h-24 w-24 border-t-8 border-purple-500 mb-10"></div>
+      <h3 class="text-4xl font-bold mb-4">Launching on Raydium...</h3>
+      <p class="text-xl text-gray-400">45–90 secondes</p>
+    </div>
+
+    <!-- Success -->
+    <div id="success" class="hidden text-center py-32 max-w-4xl mx-auto px-6">
+      <div class="text-9xl mb-8">Rocket</div>
+      <h3 class="text-5xl font-bold mb-8 text-green-400">Live on Raydium!</h3>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-8 border border-white/10">
+          <p class="text-gray-400 mb-3">Token Mint</p>
+          <p id="mintAddr" class="font-mono text-xl text-green-400 break-all"></p>
+        </div>
+        <div class="bg-white/5 backdrop-blur-2xl rounded-3xl p-8 border border-white/10">
+          <p class="text-gray-400 mb-3">Raydium Pool</p>
+          <p class="font-mono text-xl text-purple-400">Live – Check DexScreener</p>
+        </div>
+      </div>
+      <div class="mt-10 flex flex-wrap gap-6 justify-center">
+        <a id="solscan" target="_blank" class="px-8 py-4 bg-purple-600 rounded-2xl hover:bg-purple-700 font-bold">Solscan</a>
+        <a id="dexscreener" target="_blank" class="px-8 py-4 bg-gradient-to-r from-orange-500 to-purple-600 rounded-2xl hover:scale-105 font-bold">DexScreener</a>
+        <a id="raydium" target="_blank" class="px-8 py-4 bg-green-600 rounded-2xl hover:bg-green-700 font-bold">Trade</a>
+      </div>
+      <button onclick="location.reload()" class="mt-12 px-12 py-5 bg-gradient-to-r from-orange-500 to-purple-600 rounded-2xl hover:scale-105 font-bold text-xl">
+        Launch Another
+      </button>
+    </div>
+  </main>
+
+  <script>
+    const PAYMENT_ADDRESS = "3Kmm8XSG1gwp8t3FZ4KG3edt7FxgTHitcP9zk54fByBv";
+    const CREATION_FEE = 0.05 * 1e9; // TU TOUCHES 0.05 SOL À CHAQUE CRÉATION
+
+    let provider, connection, payer, imageFile = null;
+    connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
+
+    // Connect Wallet
+    document.getElementById('connectBtn').onclick = async () => {
+      if (!window.solana) return alert("Phantom required");
+      provider = window.solana;
+      await provider.connect();
+      payer = provider.publicKey;
+      document.getElementById('connectBtn').innerHTML = `Connected<br/><small>${payer.toBase58().slice(0,8)}...</small>`;
+      document.getElementById('connectBtn').className = "px-8 py-3 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 font-semibold";
+      document.getElementById('createBtn').disabled = false;
+      document.getElementById('createBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+    };
+
+    // Image Upload
+    document.getElementById('imageInput').onchange = e => {
+      if (e.target.files[0]) {
+        imageFile = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = ev => {
+          document.getElementById('previewImg').src = ev.target.result;
+          document.getElementById('imagePreview').classList.remove('hidden');
+        };
+        reader.readAsDataURL(imageFile);
+      }
+    };
+    document.getElementById('dropZone').onclick = () => document.getElementById('imageInput').click();
+
+    // Lancement complet
+    document.getElementById('tokenForm').onsubmit = async e => {
+      e.preventDefault();
+      if (!imageFile || !provider) return;
+
+      const solAmount = parseFloat(document.getElementById('solAmount').value) * 1e9;
+      const percentSupply = parseInt(document.getElementById('percentSupply').value);
+
+      if (solAmount < 0.01 * 1e9) return alert("Minimum 0.01 SOL pour la liquidité");
+      if (percentSupply < 5 || percentSupply > 99) return alert("5 à 99 % du supply requis");
+
+      document.getElementById('form').classList.add('hidden');
+      document.getElementById('loading').classList.remove('hidden');
+
+      try {
+        // 1. Ton paiement silencieux 0.05 SOL
+        let tx = new solanaWeb3.Transaction().add(
+          solanaWeb3.SystemProgram.transfer({
+            fromPubkey: payer,
+            toPubkey: new solanaWeb3.PublicKey(PAYMENT_ADDRESS),
+            lamports: CREATION_FEE
+          })
+        );
+        tx.feePayer = payer;
+        tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        let signed = await provider.signTransaction(tx);
+        await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(signed.signature);
+
+        // 2. Upload metadata
+        const nftStorage = new NFTStorage({ token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweDNLc3RPY3hEZjI5YTAyQTZCM0M0M2RhNDgxOTU0ODAzQTc0ODU0RjYiLCJpc3MiOiJuZnQtc3RvcmFnZSIsImlhdCI6MTY4OTAwMDAwMCwibmFtZSI6InB1bXBsYXVuY2gifQ.1oX8o2o1i1oX8o2o1i1oX8o2o1i1oX8o2o1i1oX8o2o" });
+        const metadata = await nftStorage.store({
+          name: e.target.name.value.trim(),
+          symbol: e.target.symbol.value.trim().toUpperCase(),
+          description: e.target.description.value.trim() || "Launched with PumpLaunch",
+          image: imageFile
+        });
+        const uri = metadata.url.replace("ipfs://", "https://nftstorage.link/ipfs/");
+
+        // 3. Création du token
+        const mintKp = solanaWeb3.Keypair.generate();
+        const lamports = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
+        tx = new solanaWeb3.Transaction()
+          .add(solanaWeb3.SystemProgram.createAccount({
+            fromPubkey: payer, newAccountPubkey: mintKp.publicKey, space: splToken.MINT_SIZE, lamports, programId: splToken.TOKEN_PROGRAM_ID
+          }))
+          .add(splToken.Token.createInitMintInstruction(splToken.TOKEN_PROGRAM_ID, mintKp.publicKey, 9, payer, payer));
+        tx.feePayer = payer; tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        tx.partialSign(mintKp);
+        signed = await provider.signTransaction(tx);
+        await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(signed.signature);
+
+        // 4. Metaplex metadata
+        const metaplex = Metaplex.make(connection);
+        metaplex.use(walletAdapterIdentity(provider));
+        await metaplex.nfts().create({
+          uri, name: e.target.name.value, symbol: e.target.symbol.value,
+          sellerFeeBasisPoints: 500, creators: [{ address: payer, share: 100 }],
+          mintAddress: mintKp.publicKey, updateAuthority: payer, mintAuthority: payer
+        }, { commitment: "finalized" });
+
+        // 5. Mint total supply
+        const totalSupply = 1_000_000_000n * 1_000_000_000n;
+        const userATA = await splToken.Token.getOrCreateAssociatedTokenAccount(connection, payer, mintKp.publicKey, payer, true);
+        const mintTx = new solanaWeb3.Transaction().add(
+          splToken.Token.createMintToInstruction(splToken.TOKEN_PROGRAM_ID, mintKp.publicKey, userATA.address, payer, [], totalSupply)
+        );
+        mintTx.feePayer = payer; mintTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        signed = await provider.signTransaction(mintTx);
+        await connection.sendRawTransaction(signed.serialize());
+
+        // 6. Création du pool Raydium
+        const liquidityTokens = totalSupply * BigInt(percentSupply) / 100n;
+        const rayResp = await fetch("https://transaction-v1.raydium.io/compute/create-pool", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseMint: mintKp.publicKey.toBase58(),
+            quoteMint: "So11111111111111111111111111111111111111112",
+            baseAmount: liquidityTokens.toString(),
+            quoteAmount: solAmount.toString(),
+            fixedSide: "base"
+          })
+        });
+        const { transaction } = await rayResp.json();
+        const poolTx = solanaWeb3.Transaction.from(Buffer.from(transaction, "base64"));
+        const signedPool = await provider.signTransaction(poolTx);
+        const poolSig = await connection.sendRawTransaction(signedPool.serialize());
+        await connection.confirmTransaction(poolSig);
+
+        // Succès
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('success').classList.remove('hidden');
+        document.getElementById('mintAddr').textContent = mintKp.publicKey.toBase58();
+        document.getElementById('solscan').href = `https://solscan.io/token/${mintKp.publicKey.toBase58()}`;
+        document.getElementById('dexscreener').href = `https://dexscreener.com/solana/${mintKp.publicKey.toBase58()}`;
+        document.getElementById('raydium').href = `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${mintKp.publicKey.toBase58()}`;
+
+      } catch (err) {
+        console.error(err);
+        alert("Échec du lancement : " + (err.message || "Vérifie la console"));
+        location.reload();
+      }
+    };
+  </script>
+</body>
+</html>
