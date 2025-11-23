@@ -3,49 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connexion Phantom Wallet (Mobile & Desktop)</title>
+  <title>Création de Jetons Solana</title>
   <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
+  <script src="https://unpkg.com/@solana/spl-token@3.3.0/dist/index.iife.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 20px;
-      text-align: center;
-      background: #f9f9f9;
-    }
-    button {
-      background: #9945FF;
-      color: white;
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
-      cursor: pointer;
-      margin: 10px;
-    }
-    #status {
-      margin: 20px;
-      padding: 10px;
-      border-radius: 8px;
-      background: #e9e9e9;
-      min-height: 20px;
-    }
-    .success {
-      background: #d4edda;
-      color: #155724;
-    }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
-    }
-    .wallet-info {
-      margin-top: 20px;
-      padding: 10px;
-      background: white;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-    }
+    /* Votre CSS existant */
   </style>
 </head>
 <body>
@@ -55,9 +17,13 @@
   <div id="status">Prêt à connecter...</div>
   <div id="walletInfo" class="wallet-info" style="display: none;">
     <p><strong>Adresse du wallet :</strong> <span id="walletAddress"></span></p>
+    <button onclick="createToken()" id="createTokenBtn" style="display:none;">Créer Jetons</button>
   </div>
 
   <script>
+    let walletAddress = null;
+    let isMobile = false;
+
     // Fonction principale de connexion
     async function connectPhantom() {
       const statusEl = document.getElementById('status');
@@ -66,10 +32,9 @@
 
       try {
         if (window.solana && window.solana.isPhantom) {
-          // Cas Desktop/Extension
           await handleDesktopConnection();
         } else {
-          // Cas Mobile
+          isMobile = true;
           await handleMobileConnection();
         }
       } catch (err) {
@@ -84,27 +49,23 @@
       const statusEl = document.getElementById('status');
       try {
         const response = await window.solana.connect();
-        const publicKey = response.publicKey.toString();
+        walletAddress = response.publicKey.toString();
         statusEl.className = 'success';
         statusEl.textContent = "Connecté avec succès !";
-        document.getElementById('walletAddress').textContent = publicKey;
+        document.getElementById('walletAddress').textContent = walletAddress;
         document.getElementById('walletInfo').style.display = 'block';
+        document.getElementById('createTokenBtn').style.display = 'inline-block';
       } catch (err) {
         statusEl.className = 'error';
         statusEl.textContent = "Connexion refusée ou erreur : " + err.message;
       }
     }
 
-    // Gestion de la connexion Mobile (Deep Link + redirection)
+    // Gestion de la connexion Mobile
     async function handleMobileConnection() {
-      const statusEl = document.getElementById('status');
       const dappURL = encodeURIComponent(window.location.href);
-      const phantomMobileURL = `https://phantom.app/ul/v1/connect?dapp=${dappURL}`;
-
-      // Stocke l'URL actuelle pour la récupération après redirection
+      const phantomMobileURL = `https://phantom.app/ul/v1/connect?dapp=\${dappURL}`;
       localStorage.setItem('phantomRedirectURL', window.location.href);
-
-      // Redirige vers Phantom Mobile
       window.location.href = phantomMobileURL;
     }
 
@@ -112,31 +73,117 @@
     window.addEventListener('load', async function() {
       const statusEl = document.getElementById('status');
       const urlParams = new URLSearchParams(window.location.search);
-      const phantomSession = urlParams.get('phantom_session');
-
-      // Si on revient d'une connexion mobile réussie
-      if (phantomSession && localStorage.getItem('phantomRedirectURL')) {
-        // Ici, tu peux récupérer l'adresse du wallet depuis phantomSession (à adapter selon l'API Phantom)
-        // Pour l'exemple, on simule une adresse
-        const simulatedAddress = "ExempleMobile123..."; // Remplace par la vraie récupération
-        statusEl.className = 'success';
-        statusEl.textContent = "Connecté avec succès depuis mobile !";
-        document.getElementById('walletAddress').textContent = simulatedAddress;
-        document.getElementById('walletInfo').style.display = 'block';
-
-        // Nettoie l'URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        localStorage.removeItem('phantomRedirectURL');
+      
+      // Si on revient d'une connexion mobile
+      const token = urlParams.get('token');
+      if (token && localStorage.getItem('phantomRedirectURL')) {
+        try {
+          const response = await fetch('/api/phantom/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          });
+          const data = await response.json();
+          
+          if (data.success) {
+            walletAddress = data.walletAddress;
+            statusEl.className = 'success';
+            statusEl.textContent = "Connecté avec succès depuis mobile !";
+            document.getElementById('walletAddress').textContent = walletAddress;
+            document.getElementById('walletInfo').style.display = 'block';
+            document.getElementById('createTokenBtn').style.display = 'inline-block';
+          }
+        } catch (err) {
+          statusEl.className = 'error';
+          statusEl.textContent = "Erreur mobile : " + err.message;
+        } finally {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          localStorage.removeItem('phantomRedirectURL');
+        }
       }
-      // Si Phantom est déjà connecté (desktop)
+      // Si déjà connecté (desktop)
       else if (window.solana && window.solana.isConnected) {
-        const publicKey = window.solana.publicKey.toString();
+        walletAddress = window.solana.publicKey.toString();
         statusEl.className = 'success';
         statusEl.textContent = "Déjà connecté !";
-        document.getElementById('walletAddress').textContent = publicKey;
+        document.getElementById('walletAddress').textContent = walletAddress;
         document.getElementById('walletInfo').style.display = 'block';
+        document.getElementById('createTokenBtn').style.display = 'inline-block';
       }
     });
+
+    // Création de jetons
+    async function createToken() {
+      if (!walletAddress) {
+        document.getElementById('status').textContent = "Veuillez vous connecter d'abord";
+        return;
+      }
+
+      const statusEl = document.getElementById('status');
+      statusEl.className = '';
+      statusEl.textContent = "Création de jetons en cours...";
+
+      try {
+        const connection = new solana.web3.Connection(solana.web3.clusterApiUrl('devnet'));
+        
+        if (isMobile) {
+          // Pour mobile, envoyer une requête au backend
+          const response = await fetch('/api/create-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ walletAddress })
+          });
+          const data = await response.json();
+          
+          if (data.success) {
+            statusEl.className = 'success';
+            statusEl.textContent = `Jeton créé avec succès! Mint: \${data.mintAddress}`;
+          } else {
+            throw new Error(data.message || 'Échec de la création');
+          }
+        } else {
+          // Pour desktop, utiliser directement web3.js
+          const wallet = window.solana;
+          const publicKey = new solana.web3.PublicKey(walletAddress);
+          
+          // 1. Créer un compte mint
+          const mint = await solana.spl.token.createMint(
+            connection,
+            wallet,
+            publicKey, // authority
+            publicKey, // mintAuthority
+            null,      // freezeAuthority
+            9          // decimals
+          );
+          
+          // 2. Créer un compte token associé
+          const associatedToken = await solana.spl.token.getAssociatedTokenAddress(
+            publicKey,
+            mint
+          );
+          
+          // 3. Minter des tokens
+          const transaction = new solana.web3.Transaction().add(
+            solana.spl.token.createMintToInstruction(
+              mint,
+              associatedToken,
+              publicKey,
+              1_000_000_000_000 // 1 billion tokens
+            )
+          );
+          
+          const signature = await wallet.signAndSend(transaction);
+          await connection.confirmTransaction(signature, 'processed');
+          
+          statusEl.className = 'success';
+          statusEl.textContent = `Jeton créé avec succès! Mint: \${mint.toString()}`;
+        }
+      } catch (err) {
+        statusEl.className = 'error';
+        statusEl.textContent = "Erreur création : " + err.message;
+        console.error(err);
+      }
+    }
   </script>
 </body>
 </html>
