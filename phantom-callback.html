@@ -1,51 +1,32 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
-    <meta charset="UTF-8" />
-    <title>Phantom Callback</title>
-    <script>
-        (async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const errorCode = urlParams.get('errorCode');
-            const errorMessage = urlParams.get('errorMessage');
-            const txSignature = urlParams.get('tx');
-
-            // Gestion des erreurs Phantom
-            if (errorCode) {
-                console.error("Erreur Phantom:", { errorCode, errorMessage });
-                alert(`Erreur Phantom : \${errorMessage} (Code: \${errorCode})`);
-                window.close();
-                return;
-            }
-
-            // Vérification du paramètre 'tx'
-            if (!txSignature) {
-                alert("Connexion annulée : Aucun identifiant de transaction trouvé");
-                window.close();
-                return;
-            }
-
-            try {
-                // Vérifier si window.opener existe
-                if (!window.opener) {
-                    throw new Error("Impossible de trouver la fenêtre principale");
-                }
-
-                // Envoyer le message à la fenêtre principale
-                window.opener.postMessage(
-                    { type: 'phantom-connected', signature: txSignature },
-                    window.opener.location.origin // Utiliser l'origine exacte pour éviter les problèmes CORS
-                );
-                window.close();
-            } catch (err) {
-                console.error("Erreur lors de la communication avec la fenêtre principale:", err);
-                alert("Échec de la connexion : " + err.message);
-                window.close();
-            }
-        })();
-    </script>
+  <title>Phantom Callback</title>
 </head>
 <body>
-    <!-- Page vide pour les navigateurs compatibles -->
+  <h1>Traitement de la transaction...</h1>
+  <script>
+    // Extraire les paramètres de l'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const transactionResponse = urlParams.get('transactionResponse');
+    const signature = urlParams.get('signature');
+
+    if (transactionResponse && signature) {
+      // Valider la signature (exemple avec Solana)
+      const { PublicKey } = require('@solana/web3.js');
+      const message = new TextEncoder().encode(transactionResponse);
+      const publicKey = new PublicKey('PHANTOM_PUBLIC_KEY');
+      const isValid = await web3.ed25519.verifySignature(message, publicKey, Uint8Array.from Buffer.from(signature, 'hex')));
+      
+      if (isValid) {
+        alert('Transaction validée avec succès !');
+        // Rediriger vers une page de confirmation
+      } else {
+        alert('Échec de la validation de la signature.');
+      }
+    } else {
+      alert('Paramètres manquants dans la requête.');
+    }
+  </script>
 </body>
 </html>
