@@ -1,168 +1,24 @@
 <!DOCTYPE html>
-<html lang="fr" class="scroll-smooth">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PumpLaunch — Token + Raydium Auto Pool</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Test Phantom</title>
   <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
-  <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@metaplex-foundation/js@0.20.1/dist/index.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/nft.storage@7.1.1/dist/index.min.js"></script>
-  <!-- Raydium SDK -->
-  <script src="https://unpkg.com/@raydium-io/raydium-sdk@latest/dist/raydium-sdk.umd.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .animate-spin { animation: spin 1s linear infinite; }
-    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    .gradient-text { background: linear-gradient(to right, #f97316, #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  </style>
 </head>
-<body class="min-h-screen bg-black text-white">
-
-  <!-- ... (tous les éléments HTML restants identiques) ... -->
-
+<body>
+  <button onclick="connectPhantom()">Connect Phantom</button>
   <script>
-    const TON_ADRESSE = "3Kmm8XSG1gwp8t3FZ4KG3edt7FxgTHitcP9zk54fByBv";
-    const FRAIS = 0.05 * 1e9; // 0.05 SOL en lamports
-    const RAYDIUM_PROGRAM_ID = "RAYDIUM_1111111111111111111111111111111111111111111";
-
-    let provider = null;
-    const connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com", "confirmed");
-    let imageFile = null;
-
-    // ... (fonctions d'affichage et de connexion existantes) ...
-
-    document.getElementById("tokenForm").onsubmit = async e => {
-      e.preventDefault();
-      
-      // Vérification du wallet connecté
-      if (!provider?.publicKey) {
-        return alert("Veuillez connecter votre wallet avant de soumettre le formulaire");
+    async function connectPhantom() {
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const response = await window.solana.connect();
+          console.log("Public Key:", window.solana.publicKey.toString());
+        } catch (err) {
+          console.error("Error:", err);
+        }
+      } else {
+        alert("Phantom not found!");
       }
-      if (!imageFile) return alert("Veuillez sélectionner une image pour votre token");
-
-      const formData = new FormData(e.target);
-      const solAmount = parseFloat(document.getElementById("solAmount").value);
-      
-      if (isNaN(solAmount) || solAmount <= 0) {
-        return alert("Veuillez entrer un montant SOL valide");
-      }
-
-      const lamports = solAmount * 1e9;
-      const balance = await connection.getBalance(provider.publicKey);
-      
-      if (balance < lamports + FRAIS) {
-        return alert(`Solde insuffisant. Vous avez \${(balance / 1e9).toFixed(4)} SOL. Besoin de \${(solAmount + 0.05).toFixed(4)} SOL`);
-      }
-
-      // Création de la transaction avec transfert SOL
-      const transaction = new solanaWeb3.Transaction()
-        .add(
-          solanaWeb3.SystemProgram.transfer({
-            fromPubkey: provider.publicKey,
-            toPubkey: new solanaWeb3.PublicKey(TON_ADRESSE),
-            lamports: lamports
-          })
-        );
-
-      try {
-        // 1. Création du token
-        const metaplex = new metaplex.Metaplex(connection);
-        const wallet = metaplex.wallets().solana(provider.publicKey);
-        
-        // Upload de l'image
-        const client = nftstorage.createClient({ token: "VOTRE_CLE_NFT_STORAGE" });
-        const blob = new Blob([await imageFile.arrayBuffer()]);
-        const cid = await client.storeBlob(blob);
-        const uri = `ipfs://\${cid}`;
-
-        // Mint du token
-        const mint = await metaplex.nfts().mintToCollectionItem(
-          wallet,
-          {
-            name: formData.get("name"),
-            symbol: formData.get("symbol"),
-            uri: uri,
-            sellerFeeBasisPoints: 0,
-            collection: null,
-            tokenStandard: metaplex.nfts().tokenStandard.NftStandard
-          },
-          [provider.publicKey]
-        );
-
-        // 2. Création du pool Raydium
-        const ray = new Raydium({
-          connection,
-          wallet: {
-            publicKey: provider.publicKey,
-            signTransaction: provider.signTransaction.bind(provider),
-            signAllTransactions: provider.signAllTransactions.bind(provider)
-          }
-        });
-
-        const percentSupply = parseInt(document.getElementById("percentSupply").value);
-        const tokenAmount = 1_000_000_000; // 1 milliard de jetons
-        const liquidityTokenAmount = Math.floor(tokenAmount * percentSupply / 100);
-        const userTokenAmount = tokenAmount - liquidityTokenAmount;
-
-        // Créer le pool
-        const pool = await ray.createPool({
-          baseMint: solanaWeb3.SystemProgram.programId.toBase58(), // SOL
-          quoteMint: mint.mintAddress.toBase58(),
-          poolType: 0, // CURVE
-          feeRateBps: 25, // 0.25%
-          tickSpacing: 64,
-          status: 1 // Active
-        });
-
-        // Ajouter liquidité
-        const addLiquidityIxs = await ray.addLiquidity({
-          poolId: pool.poolId,
-          baseAmount: lamports,
-          quoteAmount: liquidityTokenAmount * (10 ** 9), // 9 décimales
-          tip: 0,
-          minAmountOut: 0,
-          tokenAccountOwner: provider.publicKey
-        });
-
-        // Ajouter les instructions au transaction
-        transaction.add(...addLiquidityIxs.instructions);
-
-        // Signer et envoyer la transaction
-        const signature = await provider.signAndSend(transaction);
-        
-        // Affichage loading
-        document.getElementById("loading").classList.remove("hidden");
-        document.getElementById("form").classList.add("hidden");
-        
-        await connection.confirmTransaction(signature, "processed");
-        
-        // Affichage succès
-        document.getElementById("success").classList.remove("hidden");
-        document.getElementById("loading").classList.add("hidden");
-        
-        // Mettre à jour les liens
-        document.getElementById("mintAddr").textContent = mint.mintAddress.toBase58();
-        document.getElementById("solscan").href = `https://solscan.io/tx/\${signature}`;
-        document.getElementById("dexscreener").href = `https://dexscreener.com/solana/pool/\${pool.poolId}`;
-        document.getElementById("raydium").href = `https://raydium.io/trade/\${pool.poolId}`;
-        
-        // Ajouter message de transfert
-        const transferInfo = document.createElement("div");
-        transferInfo.className = "bg-white/5 backdrop-blur-2xl rounded-3xl p-8 border border-white/10 mb-8";
-        transferInfo.innerHTML = `
-          <p>class="text-gray-400 mb-3">Transfert SOL effectué</p>
-          <p>class="font-mono text-xl text-green-400">Montant: \${solAmount} SOL à \${tronquer(TON_ADRESSE)}</p>
-        `;
-        document.getElementById("success").querySelector("div.grid").before(transferInfo);
-        
-      } catch (error) {
-        console.error("Transaction échouée:", error);
-        alert("La transaction a échoué. Veuillez vérifier vos paramètres.");
-      }
-    };
+    }
   </script>
 </body>
 </html>
