@@ -1,32 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Phantom Callback</title>
+    <meta charset="UTF-8">
+    <title>Phantom Callback</title>
+    <script>
+        // Redirige vers la page principale après 1 seconde
+        setTimeout(() => {
+            window.location.href = "https://pumplaunch.github.io/";
+        }, 1000);
+    </script>
 </head>
 <body>
-  <h1>Traitement de la transaction...</h1>
-  <script>
-    // Extraire les paramètres de l'URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const transactionResponse = urlParams.get('transactionResponse');
-    const signature = urlParams.get('signature');
-
-    if (transactionResponse && signature) {
-      // Valider la signature (exemple avec Solana)
-      const { PublicKey } = require('@solana/web3.js');
-      const message = new TextEncoder().encode(transactionResponse);
-      const publicKey = new PublicKey('PHANTOM_PUBLIC_KEY');
-      const isValid = await web3.ed25519.verifySignature(message, publicKey, Uint8Array.from Buffer.from(signature, 'hex')));
-      
-      if (isValid) {
-        alert('Transaction validée avec succès !');
-        // Rediriger vers une page de confirmation
-      } else {
-        alert('Échec de la validation de la signature.');
-      }
-    } else {
-      alert('Paramètres manquants dans la requête.');
-    }
-  </script>
+    <h1 style="text-align:center; padding: 50px;">Redirection...</h1>
+    <p style="text-align:center;">Veuillez patienter, vous serez redirigé automatiquement</p>
 </body>
 </html>
