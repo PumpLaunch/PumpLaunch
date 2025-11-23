@@ -163,10 +163,12 @@
       else return alert("Installe Phantom ou Solflare");
 
       try {
-        await provider.connect();
-        afficherConnecte(provider.publicKey);
-      } catch (e) {}
-    }
+  await provider.connect({ onlyIfTrusted: true });
+  afficherConnecte(provider.publicKey);
+} catch (e) {
+  console.error("Connexion échouée", e);
+  alert("Connexion échouée. Veuillez vérifier votre portefeuille.");
+      }
 
     document.getElementById("connectBtn").onclick = connecter;
 
