@@ -1,20 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8" />
+    <title>Phantom Callback</title>
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const txSignature = urlParams.get('tx');
+        (async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const errorCode = urlParams.get('errorCode');
+            const errorMessage = urlParams.get('errorMessage');
+            const txSignature = urlParams.get('tx');
 
-        if (txSignature) {
-            localStorage.setItem('phantomTxSignature', txSignature);
-            window.opener.postMessage({ type: 'phantom-connected', signature: txSignature }, '*');
-            window.close();
-        } else {
-            alert("Connexion annulée");
-            window.close();
-        }
+            // Gestion des erreurs Phantom
+            if (errorCode) {
+                console.error("Erreur Phantom:", { errorCode, errorMessage });
+                alert(`Erreur Phantom : \${errorMessage} (Code: \${errorCode})`);
+                window.close();
+                return;
+            }
+
+            // Vérification du paramètre 'tx'
+            if (!txSignature) {
+                alert("Connexion annulée : Aucun identifiant de transaction trouvé");
+                window.close();
+                return;
+            }
+
+            try {
+                // Vérifier si window.opener existe
+                if (!window.opener) {
+                    throw new Error("Impossible de trouver la fenêtre principale");
+                }
+
+                // Envoyer le message à la fenêtre principale
+                window.opener.postMessage(
+                    { type: 'phantom-connected', signature: txSignature },
+                    window.opener.location.origin // Utiliser l'origine exacte pour éviter les problèmes CORS
+                );
+                window.close();
+            } catch (err) {
+                console.error("Erreur lors de la communication avec la fenêtre principale:", err);
+                alert("Échec de la connexion : " + err.message);
+                window.close();
+            }
+        })();
     </script>
 </head>
-<body></body>
+<body>
+    <!-- Page vide pour les navigateurs compatibles -->
+</body>
 </html>
