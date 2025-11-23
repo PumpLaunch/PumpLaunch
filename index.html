@@ -12,6 +12,7 @@
       margin: 0 auto;
       padding: 20px;
       text-align: center;
+      background: #f9f9f9;
     }
     button {
       background: #9945FF;
@@ -27,7 +28,23 @@
       margin: 20px;
       padding: 10px;
       border-radius: 8px;
-      background: #f0f0f0;
+      background: #e9e9e9;
+      min-height: 20px;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .wallet-info {
+      margin-top: 20px;
+      padding: 10px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #ddd;
     }
   </style>
 </head>
@@ -35,39 +52,89 @@
   <h1>Connexion Phantom Wallet</h1>
   <p>Cliquez ci-dessous pour connecter votre wallet Phantom (mobile ou desktop).</p>
   <button onclick="connectPhantom()">Connecter Phantom</button>
-  <div id="status">En attente de connexion...</div>
+  <div id="status">Prêt à connecter...</div>
+  <div id="walletInfo" class="wallet-info" style="display: none;">
+    <p><strong>Adresse du wallet :</strong> <span id="walletAddress"></span></p>
+  </div>
 
   <script>
     // Fonction principale de connexion
     async function connectPhantom() {
+      const statusEl = document.getElementById('status');
+      statusEl.className = '';
+      statusEl.textContent = "Connexion en cours...";
+
       try {
         if (window.solana && window.solana.isPhantom) {
           // Cas Desktop/Extension
-          document.getElementById('status').textContent = "Phantom détecté (desktop). Connexion en cours...";
-          const response = await window.solana.connect();
-          document.getElementById('status').textContent = "Connecté avec succès ! Adresse : " + response.publicKey.toString();
+          await handleDesktopConnection();
         } else {
           // Cas Mobile
-          document.getElementById('status').textContent = "Phantom non détecté. Redirection vers l'application mobile...";
-          connectPhantomMobile();
+          await handleMobileConnection();
         }
       } catch (err) {
-        document.getElementById('status').textContent = "Erreur : " + err.message;
+        statusEl.className = 'error';
+        statusEl.textContent = "Erreur : " + err.message;
         console.error(err);
       }
     }
 
-    // Fonction pour mobile (Deep Link)
-    function connectPhantomMobile() {
+    // Gestion de la connexion Desktop
+    async function handleDesktopConnection() {
+      const statusEl = document.getElementById('status');
+      try {
+        const response = await window.solana.connect();
+        const publicKey = response.publicKey.toString();
+        statusEl.className = 'success';
+        statusEl.textContent = "Connecté avec succès !";
+        document.getElementById('walletAddress').textContent = publicKey;
+        document.getElementById('walletInfo').style.display = 'block';
+      } catch (err) {
+        statusEl.className = 'error';
+        statusEl.textContent = "Connexion refusée ou erreur : " + err.message;
+      }
+    }
+
+    // Gestion de la connexion Mobile (Deep Link + redirection)
+    async function handleMobileConnection() {
+      const statusEl = document.getElementById('status');
       const dappURL = encodeURIComponent(window.location.href);
       const phantomMobileURL = `https://phantom.app/ul/v1/connect?dapp=${dappURL}`;
+
+      // Stocke l'URL actuelle pour la récupération après redirection
+      localStorage.setItem('phantomRedirectURL', window.location.href);
+
+      // Redirige vers Phantom Mobile
       window.location.href = phantomMobileURL;
     }
 
-    // Vérifie si Phantom est déjà connecté au chargement de la page
-    window.addEventListener('load', function() {
-      if (window.solana && window.solana.isConnected) {
-        document.getElementById('status').textContent = "Déjà connecté : " + window.solana.publicKey.toString();
+    // Vérifie la redirection après connexion mobile
+    window.addEventListener('load', async function() {
+      const statusEl = document.getElementById('status');
+      const urlParams = new URLSearchParams(window.location.search);
+      const phantomSession = urlParams.get('phantom_session');
+
+      // Si on revient d'une connexion mobile réussie
+      if (phantomSession && localStorage.getItem('phantomRedirectURL')) {
+        // Ici, tu peux récupérer l'adresse du wallet depuis phantomSession (à adapter selon l'API Phantom)
+        // Pour l'exemple, on simule une adresse
+        const simulatedAddress = "ExempleMobile123..."; // Remplace par la vraie récupération
+        statusEl.className = 'success';
+        statusEl.textContent = "Connecté avec succès depuis mobile !";
+        document.getElementById('walletAddress').textContent = simulatedAddress;
+        document.getElementById('walletInfo').style.display = 'block';
+
+        // Nettoie l'URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+        localStorage.removeItem('phantomRedirectURL');
+      }
+      // Si Phantom est déjà connecté (desktop)
+      else if (window.solana && window.solana.isConnected) {
+        const publicKey = window.solana.publicKey.toString();
+        statusEl.className = 'success';
+        statusEl.textContent = "Déjà connecté !";
+        document.getElementById('walletAddress').textContent = publicKey;
+        document.getElementById('walletInfo').style.display = 'block';
       }
     });
   </script>
