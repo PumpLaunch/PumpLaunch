@@ -139,7 +139,6 @@
           statusDiv.innerText = "Erreur: " + (err?.message || err);
         }
       }
-
       // Connexion mobile (deep link)
       function connectMobile() {
         try {
@@ -198,29 +197,22 @@
           }, 6000);
 
           a.click();
+
         } catch (err) {
           console.error("connectMobile error:", err);
           statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
         }
       } // ← ferme bien la fonction ici
 
-      // Déchiffre le retour Phantom (connexion ou signature)
-      function handlePhantomReturn() {
-        // ...
-      }
-
-      // 👉 Ajoute ce listener à la fin du bloc DOMContentLoaded :
+      // 👉 Ajoute ce listener à la fin du DOMContentLoaded :
       connectBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        if (isMobile()) {
           connectMobile(); // deep link vers l’app
         } else {
           connectDesktop(); // extension Phantom
         }
       });
-      
-  
-    
     // Déchiffre le retour Phantom (connexion ou signature)
       function handlePhantomReturn() {
         try {
