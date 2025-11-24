@@ -141,119 +141,85 @@
       }
 
       // Connexion mobile (deep link)
-  function connectMobile() {
-  try {
-    statusDiv.innerText = "📱 Tentative d'ouverture de Phantom...";
+      function connectMobile() {
+        try {
+          statusDiv.innerText = "📱 Tentative d'ouverture de Phantom...";
 
-    // Génère paire NaCl et stocke le secret
-    const keyPair = nacl.box.keyPair();
-    const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
-    const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
-    sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
+          const keyPair = nacl.box.keyPair();
+          const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
+          const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
+          sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
 
-    const appUrl = encodeURIComponent(currentPageUrl());
-    const redirectLink = encodeURIComponent(currentPageUrl());
+          const appUrl = encodeURIComponent(currentPageUrl());
+          const redirectLink = encodeURIComponent(currentPageUrl());
 
-    const deepLink =
-      `https://phantom.app/ul/v1/connect` +
-      `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-      `&app_url=${appUrl}` +
-      `&redirect_link=${redirectLink}` +
-      `&cluster=mainnet-beta`;
+          const deepLink =
+            `https://phantom.app/ul/v1/connect` +
+            `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+            `&app_url=${appUrl}` +
+            `&redirect_link=${redirectLink}` +
+            `&cluster=mainnet-beta`;
 
-    console.log("Deep link:", deepLink);
+          console.log("Deep link:", deepLink);
 
-    // Création d'un <a> et click programmatique
-    const a = document.createElement('a');
-    a.href = deepLink;
-    a.rel = "noopener noreferrer";
-    a.style.display = 'none';
-    document.body.appendChild(a);
+          const a = document.createElement('a');
+          a.href = deepLink;
+          a.rel = "noopener noreferrer";
+          a.style.display = 'none';
+          document.body.appendChild(a);
 
-    let opened = false;
+          let opened = false;
+          const visibilityHandler = () => {
+            if (document.hidden) {
+              opened = true;
+              statusDiv.innerText = "Phantom ouvert — termine la connexion dans l'app.";
+            }
+          };
+          document.addEventListener('visibilitychange', visibilityHandler, { once: true });
 
-    // Si la page devient invisible, l'utilisateur a probablement basculé vers l'app
-    const visibilityHandler = () => {
-      if (document.hidden) {
-        opened = true;
-        statusDiv.innerText = "Phantom ouvert — termine la connexion dans l'app.";
+          const fallback = setTimeout(() => {
+            if (opened) return;
+            if (/Android/i.test(navigator.userAgent)) {
+              const intentLink = `intent://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyB58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta#Intent;package=com.phantom.app;scheme=https;end`;
+              console.log("Intent fallback:", intentLink);
+              window.location.href = intentLink;
+            } else {
+              statusDiv.innerText = "Si Phantom ne s'ouvre pas, ouvre la page dans Safari ou ouvre Phantom manuellement.";
+            }
+          }, 1200);
+
+          setTimeout(() => {
+            document.removeEventListener('visibilitychange', visibilityHandler);
+            clearTimeout(fallback);
+            try { a.remove(); } catch(e){}
+            if (!opened) {
+              statusDiv.innerText = "Impossible d'ouvrir Phantom automatiquement. Ouvre l'app Phantom et reviens sur cette page.";
+            }
+          }, 6000);
+
+          a.click();
+        } catch (err) {
+          console.error("connectMobile error:", err);
+          statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
+        }
+      } // ← ferme bien la fonction ici
+
+      // Déchiffre le retour Phantom (connexion ou signature)
+      function handlePhantomReturn() {
+        // ...
       }
-    };
-    document.addEventListener('visibilitychange', visibilityHandler, { once: true });
 
-    // Fallback si l'app ne s'ouvre pas
-    const fallback = setTimeout(() => {
-      if (opened) return;
-      if (/Android/i.test(navigator.userAgent)) {
-        const intentLink = `intent://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyB58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta#Intent;package=com.phantom.app;scheme=https;end`;
-        console.log("Intent fallback:", intentLink);
-        window.location.href = intentLink;
-      } else {
-        statusDiv.innerText = "Si Phantom ne s'ouvre pas, ouvre la page dans Safari ou ouvre Phantom manuellement.";
-      }
-    }, 1200);
-
-    // Nettoyage après délai
-    setTimeout(() => {
-      document.removeEventListener('visibilitychange', visibilityHandler);
-      clearTimeout(fallback);
-      try { a.remove(); } catch(e){}
-      if (!opened) {
-        statusDiv.innerText = "Impossible d'ouvrir Phantom automatiquement. Ouvre l'app Phantom et reviens sur cette page.";
-      }
-    }, 6000);
-
-    // Déclenche le click
-    a.click();
-
-  } catch (err) {
-    console.error("connectMobile error:", err);
-    statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
-  }
-} 
+      // 👉 Ajoute ce listener à la fin du bloc DOMContentLoaded :
+      connectBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+          connectMobile(); // deep link vers l’app
+        } else {
+          connectDesktop(); // extension Phantom
+        }
+      });
       
-    // Fallback si l'app ne s'ouvre pas
-    const fallback = setTimeout(() => {
-      if (opened) return;
-
-      // Intent fallback pour Chrome Android
-      if (/Android/i.test(navigator.userAgent)) {
-        // Intent construit pour forcer l'ouverture de l'app
-        const intentLink = `intent://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyB58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta#Intent;package=com.phantom.app;scheme=https;end`;
-        console.log("Intent fallback:", intentLink);
-        window.location.href = intentLink;
-      } else {
-        // iOS / autres : invite l'utilisateur à ouvrir Safari
-        statusDiv.innerText = "Si Phantom ne s'ouvre pas, ouvre la page dans Safari ou ouvre Phantom manuellement.";
-      }
-    }, 1200);
-
-    // Nettoyage après délai plus long
-    setTimeout(() => {
-      document.removeEventListener('visibilitychange', visibilityHandler);
-      clearTimeout(fallback);
-      try { a.remove(); } catch(e){}
-      if (!opened) {
-        statusDiv.innerText = "Impossible d'ouvrir Phantom automatiquement. Ouvre l'app Phantom et reviens sur cette page.";
-      }
-    }, 6000);
-
-    // Déclenche le click (doit être dans un handler utilisateur)
-    a.click();
-
-  } catch (err) {
-    console.error("connectMobile error:", err);
-    statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
-  }
-      }
-   connectBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    connectMobile(); // deep link vers l’app
-  } else {
-    connectDesktop(); // extension Phantom
-  }
-});
+  
     
     // Déchiffre le retour Phantom (connexion ou signature)
       function handlePhantomReturn() {
