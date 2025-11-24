@@ -213,62 +213,26 @@
 
     // --- Connexion mobile (deep link) ---
     function connectMobile() {
-      statusDiv.innerText = "📱 Redirection vers l'app Phantom...";
-      const keyPair = nacl.box.keyPair();
-      const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
-      const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
-      sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
+  statusDiv.innerText = "📱 Redirection vers l'app Phantom...";
+  const keyPair = nacl.box.keyPair();
+  const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
+  const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
+  sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
 
-      const appUrl = encodeURIComponent(currentPageUrl());
-      const redirectLink = encodeURIComponent(currentPageUrl());
+  const appUrl = encodeURIComponent(currentPageUrl());
+  const redirectLink = encodeURIComponent(currentPageUrl());
 
-      const deepLink =
-        `https://phantom.app/ul/v1/connect` +
-        `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-        `&app_url=${appUrl}` +
-        `&redirect_link=${redirectLink}` +
-        `&cluster=mainnet-beta`;
+  const deepLink =
+    `https://phantom.app/ul/v1/connect` +
+    `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+    `&app_url=${appUrl}` +
+    `&redirect_link=${redirectLink}` +
+    `&cluster=mainnet-beta`;
 
-      // Utilise replace pour éviter l'historique supplémentaire
-      window.location.replace(deepLink);
+  console.log("Deep link:", deepLink);
+  console.log("Saved secret:", sessionStorage.getItem("dappSecretKeyBase58"));
+
+  // Lancer la redirection
+  window.location.replace(deepLink);
     }
-
-    // --- Connexion desktop (extension) ---
-    async function connectDesktop() {
-      statusDiv.innerText = "Tentative de connexion via extension...";
-      try {
-        if (window.solana && window.solana.isPhantom) {
-          const resp = await window.solana.connect();
-          statusDiv.innerText = "✅ Connecté via extension";
-          walletInfoDiv.innerText = resp.publicKey.toString();
-
-          // Optionnel : initialiser provider/connection ici si tu utilises Raydium
-          // provider = window.solana;
-          // connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl(network), 'confirmed');
-          // await initRaydium();
-        } else {
-          statusDiv.innerText = "❌ Extension Phantom non détectée (installez Phantom ou utilisez l'app sur mobile)";
-        }
-      } catch (err) {
-        statusDiv.innerText = "Erreur: " + (err?.message || err);
-      }
-    }
-
-    // --- Attacher l'événement au bouton ---
-    if (connectBtn) {
-      connectBtn.addEventListener('click', () => {
-        if (isMobile()) {
-          connectMobile();
-        } else {
-          connectDesktop();
-        }
-      });
-    } else {
-      console.warn("Bouton connectButton introuvable");
-    }
-
-    // --- Traiter immédiatement un retour Phantom si présent ---
-    handlePhantomReturn();
-  });
-  </script>
-  
+    
