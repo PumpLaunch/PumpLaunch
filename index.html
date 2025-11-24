@@ -1,185 +1,173 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PumpLaunch — Token + Raydium Auto Pool</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
-  <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.min.js"></script>
-  <script src="https://unpkg.com/@metaplex-foundation/umi@0.8.10/dist/index.iife.js"></script>
-  <script src="https://unpkg.com/@metaplex-foundation/umi-bundle-defaults@0.8.10/dist/index.iife.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/nft.storage@7.1.1/dist/index.min.js"></script>
-  <!-- ✅ Ajout de la dépendance Raydium SDK -->
-  <script src="https://unpkg.com/@raydium/sdk@latest/dist/raydium-sdk.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>Connexion Phantom - Desktop & Mobile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    /* ... (consevez les styles existants) ... */
+    body { font-family: sans-serif; background-color: #111; color: #eee; text-align: center; padding-top: 50px; }
+    button { padding: 15px 25px; font-size: 18px; cursor: pointer; margin: 10px; border-radius: 12px; border: 1px solid #ab9ff2; background-color: #ab9ff2; color: white; font-weight: bold; }
+    #status { margin-top: 30px; font-size: 16px; color: #ccc; }
+    #wallet-info { margin-top: 20px; font-family: monospace; color: #4ade80; word-break: break-all; background-color: #222; padding: 10px; border-radius: 8px; }
   </style>
 </head>
-<body class="min-h-screen bg-black text-white">
-  <!-- ... (consevez le contenu HTML existant) ... -->
+<body>
 
-  <script>
-    // --- CONFIGURATION ---
-    const TON_ADRESSE = "3Kmm8XSG1gwp8t3FZ4KG3edt7FxgTHitcP9zk54fByBv";
-    const FRAIS_SERVICE = 0.05 * 1e9; // 0.05 SOL
-    const NFT_STORAGE_API_KEY = "15d716b3.3cf0aa3350fb434bb59cb413af555c8c";
+  <h1>Connexion Phantom</h1>
+  <button id="connectButton">Se connecter avec Phantom</button>
+  <div id="status">Statut : Non connecté</div>
+  <div id="wallet-info"></div>
+  
+  <script type="module">
+  import nacl from "https://cdn.skypack.dev/tweetnacl";
+  import bs58 from "https://cdn.skypack.dev/bs58";
 
-    // ✅ Ajout des constantes Raydium
-    const RAY_TOKEN_PUBKEY = 'EPjFWdd5AufqSSqeM2qN1xGyVApRglBVoYFGg86Xr1AL';
-    const RAYDIUM_PROGRAM_ID = '9wFH3X6wXC8g78PSA6V8wBq8P4w5wD3jK2D7D4D5D5D5'; // Vérifiez pour votre réseau
+  const connectButton = document.getElementById('connectButton');
+  const statusDiv = document.getElementById('status');
+  const walletInfoDiv = document.getElementById('wallet-info');
 
-    // --- VARIABLES GLOBALES ---
-    let provider = null;
-    let connection = null;
-    let network = "mainnet-beta";
-    let imageFile = null;
-    let umi = null;
-    let raydiumSdk = null; // ✅ Instance Raydium SDK
+  const urlParams = new URLSearchParams(window.location.search);
+  const phantomPubKeyBase58 = urlParams.get("phantom_encryption_public_key");
+  const dataBase64 = urlParams.get("data");
+  const nonceBase64 = urlParams.get("nonce");
 
-    // --- INITIALISATION RAYDIUM ---
-    async function initRaydium() {
-      raydiumSdk = new window.Raydium({
-        connection: connection,
-        wallet: {
-          publicKey: provider.publicKey,
-          signTransaction: provider.signTransaction,
-          signAllTransactions: provider.signAllTransactions,
-        },
-        opts: { commitment: 'confirmed' },
-      });
+  // Retour Phantom
+  if (phantomPubKeyBase58 && dataBase64 && nonceBase64) {
+    statusDiv.innerText = "✅ Retour de Phantom détecté";
+
+    try {
+      // Récupérer la clé secrète stockée avant la redirection
+      const dappSecretKeyBase58 = sessionStorage.getItem("dappSecretKeyBase58");
+      if (!dappSecretKeyBase58) {
+        walletInfoDiv.innerText = "⚠️ Clé secrète introuvable (stocke-la avant la redirection)";
+      } else {
+        const dappSecretKey = bs58.decode(dappSecretKeyBase58);
+        const phantomPublicKey = bs58.decode(phantomPubKeyBase58);
+        const data = Uint8Array.from(atob(dataBase64), c => c.charCodeAt(0));
+        const nonce = Uint8Array.from(atob(nonceBase64), c => c.charCodeAt(0));
+
+        const decrypted = nacl.box.open(data, nonce, phantomPublicKey, dappSecretKey);
+        if (decrypted) {
+          const payload = new TextDecoder().decode(decrypted);
+          walletInfoDiv.innerText = payload;
+        } else {
+          walletInfoDiv.innerText = "❌ Impossible de déchiffrer le message";
+        }
+      }
+    } catch (err) {
+      walletInfoDiv.innerText = "Erreur JS: " + err.message;
     }
 
-    // --- NOUVELLES FONCTIONS RAYDIUM ---
-    async function createRaydiumPool(mintPubkey, owner, solAmount) {
+    connectButton.style.display = "none";
+  }
+
+  // Connexion mobile
+  function connectMobile() {
+    statusDiv.innerText = "Redirection vers Phantom mobile...";
+    const keyPair = nacl.box.keyPair();
+    const dappPublicKeyBase58 = bs58.encode(keyPair.publicKey);
+    const dappSecretKeyBase58 = bs58.encode(keyPair.secretKey);
+
+    // Stocker la clé privée pour le retour
+    sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyBase58);
+
+    const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+    const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+    const deepLink = `https://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyBase58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta`;
+
+    window.location.href = deepLink;
+  }
+
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  connectButton.onclick = () => {
+    if (isMobile()) {
+      connectMobile();
+    } else {
+      // Desktop: extension Phantom
+      if (window.solana && window.solana.isPhantom) {
+        window.solana.connect().then(resp => {
+          statusDiv.innerText = "✅ Connecté via extension";
+          walletInfoDiv.innerText = resp.publicKey.toString();
+        }).catch(err => {
+          statusDiv.innerText = "Erreur: " + err.message;
+        });
+      } else {
+        statusDiv.innerText = "❌ Extension Phantom non détectée";
+      }
+    }
+  };
+</script>
+
+
+  <!-- Script principal -->
+  <script type="module">
+    import nacl from "https://cdn.skypack.dev/tweetnacl";
+    import bs58 from "https://cdn.skypack.dev/bs58";
+
+    const connectButton = document.getElementById('connectButton');
+    const statusDiv = document.getElementById('status');
+    const walletInfoDiv = document.getElementById('wallet-info');
+
+    // Générer une paire de clés pour la session
+    const keyPair = nacl.box.keyPair();
+    const dappPublicKey = bs58.encode(keyPair.publicKey);   // clé publique à partager
+    const dappSecretKey = keyPair.secretKey;                // clé privée à garder secrète
+
+    console.log("Clé publique générée (Base58):", dappPublicKey);
+
+    const baseUrl = window.location.href.split('?')[0];
+    const urlParams = new URLSearchParams(window.location.search);
+    const phantomPublicKey = urlParams.get('phantom_encryption_public_key');
+
+    // Retour mobile
+    if (phantomPublicKey) {
+      statusDiv.innerText = "✅ Connecté via mobile";
+      walletInfoDiv.innerText = `Clé publique Phantom : ${phantomPublicKey}`;
+      connectButton.style.display = 'none';
+    }
+
+    // Connexion desktop
+    async function connectDesktop() {
       try {
-        await initRaydium();
-
-        // Créer le pool avec ratio 1:1 (SOL vs token)
-        const pool = await raydiumSdk.pool.createPool(
-          RAY_TOKEN_PUBKEY,
-          mintPubkey.toString(),
-          {
-            baseMintAmount: solAmount * 1e9, // SOL en lamports
-            quoteMintAmount: solAmount * 1e9, // Ratio 1:1
-            feeBips: 25, // 0.25%
-          }
-        );
-
-        console.log('Pool créé:', pool.poolPubkey.toBase58());
-        return { poolAddress: pool.poolPubkey };
-      } catch (error) {
-        throw new Error(`Échec création pool Raydium: \${error.message}`);
+        if (window.solana && window.solana.isPhantom) {
+          const resp = await window.solana.connect();
+          statusDiv.innerText = "✅ Connecté via extension";
+          walletInfoDiv.innerText = `Adresse : ${resp.publicKey.toString()}`;
+        } else {
+          statusDiv.innerText = "❌ Extension Phantom non détectée";
+        }
+      } catch (err) {
+        statusDiv.innerText = "Erreur : " + err.message;
       }
     }
 
-    async function fundPool(poolAddress, owner, mintPubkey, solAmount, tokenAmount) {
-      try {
-        // Approuver le pool pour dépenser les tokens
-        await raydiumSdk.token.approve(
-          mintPubkey.toString(),
-          poolAddress.toString(),
-          tokenAmount
-        );
+    // Connexion mobile
+    function connectMobile() {
+      statusDiv.innerText = "Redirection vers Phantom mobile...";
+      const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
 
-        // Ajouter liquidité
-        const tx = await raydiumSdk.pool.addLiquidity(
-          poolAddress.toString(),
-          RAY_TOKEN_PUBKEY,
-          mintPubkey.toString(),
-          solAmount * 1e9, // SOL en lamports
-          tokenAmount,
-          owner.toString()
-        );
 
-        await tx.send();
-        console.log('Liquidité ajoutée:', tx.signature);
-        return tx.signature;
-      } catch (error) {
-        throw new Error(`Échec financement pool: \${error.message}`);
-      }
+      // 👉 Utilisation directe de la clé publique générée
+      const deepLink = `https://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKey}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta`;
+      window.location.href = deepLink;
     }
 
-    // --- MODIFICATION DE LA LOGIQUE DE FORMULAIRE ---
-    document.getElementById("tokenForm").onsubmit = async (e) => {
-      e.preventDefault();
-      if (!provider?.publicKey) { showError("Veuillez connecter un portefeuille."); return; }
-      if (!validateForm()) return;
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
 
-      const form = document.getElementById("form");
-      const loading = document.getElementById("loading");
-      const success = document.getElementById("success");
-
-      form.classList.add("hidden");
-      loading.classList.remove("hidden");
-      hideError();
-
-      try {
-        const name = document.querySelector("[name='name']").value.trim();
-        const symbol = document.querySelector("[name='symbol']").value.trim();
-        const description = document.querySelector("[name='description']").value.trim();
-        const solAmount = parseFloat(document.getElementById("solAmount").value);
-        const percent = parseFloat(document.getElementById("percentSupply").value);
-
-        // 1. Payer les frais du service
-        const feeTx = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({
-            fromPubkey: provider.publicKey,
-            toPubkey: new solanaWeb3.PublicKey(TON_ADRESSE),
-            lamports: FRAIS_SERVICE,
-          })
-        );
-        await provider.sendAndConfirm(feeTx);
-
-        // 2. Créer le Mint du Token
-        const { mintPubkey } = await createTokenMint(provider.publicKey);
-
-        // 3. Créer le Token Account pour l'utilisateur
-        const userTokenAccount = await solanaWeb3.getAssociatedTokenAddress(mintPubkey, provider.publicKey);
-        await createTokenAccount(provider.publicKey, mintPubkey);
-
-        // 4. Mint des tokens vers le compte de l'utilisateur
-        const totalSupply = 1_000_000_000; // 1 milliard de tokens
-        const liquidityTokens = Math.floor((totalSupply * percent) / 100);
-        await mintTokensToAccount(mintPubkey, userTokenAccount, liquidityTokens, provider.publicKey);
-
-        // 5. Uploader l'image et créer les métadonnées
-        const imageUri = await uploadToNFTStorage(imageFile);
-        const metadataUri = await createAndUploadMetadata(name, symbol, description, imageUri);
-
-        // 6. Créer le pool Raydium
-        const { poolAddress } = await createRaydiumPool(mintPubkey, provider.publicKey, solAmount);
-
-        // 7. Financer le pool
-        await fundPool(poolAddress, provider.publicKey, mintPubkey, solAmount, liquidityTokens);
-
-        // 8. Afficher le succès
-        loading.classList.add("hidden");
-        success.classList.remove("hidden");
-        document.getElementById("mintAddr").textContent = mintPubkey.toBase58();
-        document.getElementById("poolAddr").textContent = poolAddress.toBase58();
-
-        document.getElementById("solscan").href = `https://solscan.io/token/\${mintPubkey.toBase58()}?cluster=\${network}`;
-        document.getElementById("dexscreener").href = `https://dexscreener.com/solana/\${poolAddress.toBase58()}`;
-        document.getElementById("raydium").href = `https://raydium.io/swap/?inputMint=sol&outputMint=\${mintPubkey.toBase58()}`;
-
-      } catch (error) {
-        console.error("Erreur lors de la création:", error);
-        showError("Une erreur est survenue : " + error.message, error.stack);
-        loading.classList.add("hidden");
-        form.classList.remove("hidden");
+    connectButton.onclick = () => {
+      if (isMobile()) {
+        connectMobile();
+      } else {
+        connectDesktop();
       }
     };
-
-    // --- INITIALISATION ---
-    document.getElementById("networkSelector").onchange = async () => {
-      await updateNetwork();
-      await initRaydium(); // Réinitialiser Raydium avec le nouveau réseau
-    };
-
-    // Initialisation
-    updateNetwork().then(initRaydium);
   </script>
+
 </body>
 </html>
