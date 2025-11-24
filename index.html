@@ -141,79 +141,44 @@
       }
       // Connexion mobile (deep link)
       function connectMobile() {
-        try {
-          statusDiv.innerText = "📱 Tentative d'ouverture de Phantom...";
+  try {
+    statusDiv.innerText = "📱 Ouverture de Phantom...";
 
-          const keyPair = nacl.box.keyPair();
-          const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
-          const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
-          sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
+    // Génère une paire de clés pour chiffrer la réponse
+    const keyPair = nacl.box.keyPair();
+    const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
+    const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
+    sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
 
-          const appUrl = encodeURIComponent(currentPageUrl());
-          const redirectLink = encodeURIComponent(currentPageUrl());
+    const appUrl = encodeURIComponent(currentPageUrl());
+    const redirectLink = encodeURIComponent(currentPageUrl());
 
-          const deepLink =
-            `https://phantom.app/ul/v1/connect` +
-            `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-            `&app_url=${appUrl}` +
-            `&redirect_link=${redirectLink}` +
-            `&cluster=mainnet-beta`;
+    // Deep link Phantom
+    const deepLink =
+      `https://phantom.app/ul/v1/connect` +
+      `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+      `&app_url=${appUrl}` +
+      `&redirect_link=${redirectLink}` +
+      `&cluster=mainnet-beta`;
 
-          console.log("Deep link:", deepLink);
+    console.log("Deep link:", deepLink);
 
-          const a = document.createElement('a');
-          a.href = deepLink;
-          a.rel = "noopener noreferrer";
-          a.style.display = 'none';
-          document.body.appendChild(a);
-
-          let opened = false;
-          const visibilityHandler = () => {
-            if (document.hidden) {
-              opened = true;
-              statusDiv.innerText = "Phantom ouvert — termine la connexion dans l'app.";
-            }
-          };
-          document.addEventListener('visibilitychange', visibilityHandler, { once: true });
-
-          const fallback = setTimeout(() => {
-            if (opened) return;
-            if (/Android/i.test(navigator.userAgent)) {
-              const intentLink = `intent://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyB58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta#Intent;package=com.phantom.app;scheme=https;end`;
-              console.log("Intent fallback:", intentLink);
-              window.location.href = intentLink;
-            } else {
-              statusDiv.innerText = "Si Phantom ne s'ouvre pas, ouvre la page dans Safari ou ouvre Phantom manuellement.";
-            }
-          }, 1200);
-
-          setTimeout(() => {
-            document.removeEventListener('visibilitychange', visibilityHandler);
-            clearTimeout(fallback);
-            try { a.remove(); } catch(e){}
-            if (!opened) {
-              statusDiv.innerText = "Impossible d'ouvrir Phantom automatiquement. Ouvre l'app Phantom et reviens sur cette page.";
-            }
-          }, 6000);
-
-          a.click();
-
-        } catch (err) {
-          console.error("connectMobile error:", err);
-          statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
-        }
-      } // ← ferme bien la fonction ici
-
+    // Déclenche la redirection
+    window.location.href = deepLink;
+  } catch (err) {
+    statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
+  }
+      }
       // 👉 Ajoute ce listener à la fin du DOMContentLoaded :
       connectBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (isMobile()) {
-          connectMobile(); // deep link vers l’app
-        } else {
-          connectDesktop(); // extension Phantom
-        }
-      });
-    // Déchiffre le retour Phantom (connexion ou signature)
+  e.preventDefault();
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    connectMobile(); // smartphone → ouvre l’app Phantom
+  } else {
+    connectDesktop(); // ordinateur → extension Phantom
+  }
+});
+      // Déchiffre le retour Phantom (connexion ou signature)
       function handlePhantomReturn() {
         try {
           const params = new URLSearchParams(window.location.search);
