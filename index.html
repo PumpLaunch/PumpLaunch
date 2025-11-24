@@ -148,126 +148,127 @@
 
   <!-- Script Phantom (module) -->
   <script type="module">
-    import nacl from "https://cdn.skypack.dev/tweetnacl";
-    import bs58 from "https://cdn.skypack.dev/bs58";
+  import nacl from "https://cdn.skypack.dev/tweetnacl";
+  import bs58 from "https://cdn.skypack.dev/bs58";
 
-    // On attend que le DOM soit prêt avant d'attacher les handlers
-    document.addEventListener("DOMContentLoaded", () => {
-      const connectButton = document.getElementById('connectButton');
-      const statusDiv = document.getElementById('status');
-      const walletInfoDiv = document.getElementById('wallet-info');
+  document.addEventListener("DOMContentLoaded", () => {
+    const connectBtn = document.getElementById('connectButton');
+    const statusDiv = document.getElementById('status');
+    const walletInfoDiv = document.getElementById('wallet-info');
 
-      // Lire les params de l'URL (retour Phantom)
-      const urlParams = new URLSearchParams(window.location.search);
-      const phantomPubKeyBase58 = urlParams.get("phantom_encryption_public_key");
-      const dataBase64 = urlParams.get("data");
-      const nonceBase64 = urlParams.get("nonce");
+    // --- Helpers ---
+    function isMobile() {
+      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    }
 
-      // Si Phantom a redirigé avec des params, tenter le déchiffrement
-      if (phantomPubKeyBase58 && dataBase64 && nonceBase58 !== undefined) {
-        // Note: variable name check below uses nonceBase64
-      }
+    function currentPageUrl() {
+      return window.location.origin + window.location.pathname;
+    }
 
-      // Fonction pour traiter le retour Phantom (séparée pour clarté)
-      async function handlePhantomReturn() {
-        const phantomPubKey = urlParams.get("phantom_encryption_public_key");
-        const dataB64 = urlParams.get("data");
-        const nonceB64 = urlParams.get("nonce");
+    // --- Décryptage du retour Phantom ---
+    async function handlePhantomReturn() {
+      const params = new URLSearchParams(window.location.search);
+      const phantomPubKeyB58 = params.get("phantom_encryption_public_key");
+      const dataB64 = params.get("data");
+      const nonceB64 = params.get("nonce");
 
-        if (!phantomPubKey || !dataB64 || !nonceB64) return;
+      if (!phantomPubKeyB58 || !dataB64 || !nonceB64) return;
 
-        statusDiv.innerText = "✅ Wallet connecté via Phantom (retour)";
-
-        try {
-          const dappSecretKeyBase58 = sessionStorage.getItem("dappSecretKeyBase58");
-          if (!dappSecretKeyBase58) {
-            walletInfoDiv.innerText = "⚠️ Clé secrète introuvable (stocke-la avant la redirection)";
-            return;
-          }
-
-          const dappSecretKey = bs58.decode(dappSecretKeyBase58);
-          const phantomPublicKey = bs58.decode(phantomPubKey);
-          const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
-          const nonce = Uint8Array.from(atob(nonceB64), c => c.charCodeAt(0));
-
-          const decrypted = nacl.box.open(data, nonce, phantomPublicKey, dappSecretKey);
-          if (decrypted) {
-            const payload = new TextDecoder().decode(decrypted);
-            try {
-              const parsed = JSON.parse(payload);
-              // Affiche les infos sans masquer l'UI
-              walletInfoDiv.innerText = `Adresse du wallet : ${parsed.public_key}\nSession : ${parsed.session || "—"}`;
-              // Optionnel : initialiser provider si tu veux utiliser provider pour Raydium
-              // provider = { publicKey: new solanaWeb3.PublicKey(parsed.public_key), signTransaction: ..., signAllTransactions: ... }
-            } catch {
-              walletInfoDiv.innerText = payload;
-            }
-          } else {
-            walletInfoDiv.innerText = "❌ Impossible de déchiffrer le message";
-          }
-        } catch (err) {
-          walletInfoDiv.innerText = "Erreur JS: " + err.message;
+      statusDiv.innerText = "✅ Wallet connecté via Phantom (retour)";
+      try {
+        const dappSecretKeyB58 = sessionStorage.getItem("dappSecretKeyBase58");
+        if (!dappSecretKeyB58) {
+          walletInfoDiv.innerText = "⚠️ Clé secrète introuvable (générée avant la redirection)";
+          return;
         }
-      }
 
-      // Appel initial pour gérer un éventuel retour Phantom
-      handlePhantomReturn();
+        const dappSecretKey = bs58.decode(dappSecretKeyB58);
+        const phantomPublicKey = bs58.decode(phantomPubKeyB58);
 
-      // Helpers pour la connexion mobile / desktop
-      function isMobile() {
-        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      }
+        const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
+        const nonce = Uint8Array.from(atob(nonceB64), c => c.charCodeAt(0));
 
-      function connectMobile() {
-        statusDiv.innerText = "Redirection vers Phantom mobile...";
-        const keyPair = nacl.box.keyPair();
-        const dappPublicKeyBase58 = bs58.encode(keyPair.publicKey);
-        const dappSecretKeyBase58 = bs58.encode(keyPair.secretKey);
-        // Stocker la clé privée pour le retour (sessionStorage est effacé à la fermeture de l'onglet)
-        sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyBase58);
-
-        const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
-        const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
-        const deepLink = `https://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyBase58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta`;
-
-        // Redirection vers Phantom
-        window.location.href = deepLink;
-      }
-
-      async function connectDesktop() {
-        statusDiv.innerText = "Tentative de connexion via extension...";
-        try {
-          if (window.solana && window.solana.isPhantom) {
-            const resp = await window.solana.connect();
-            statusDiv.innerText = "✅ Connecté via extension";
-            walletInfoDiv.innerText = resp.publicKey.toString();
-            // Optionnel : assigner provider pour usage ultérieur
-            provider = window.solana;
-            connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl(network), 'confirmed');
-            await initRaydium();
-          } else {
-            statusDiv.innerText = "❌ Extension Phantom non détectée";
-          }
-        } catch (err) {
-          statusDiv.innerText = "Erreur: " + (err?.message || err);
+        const decrypted = nacl.box.open(data, nonce, phantomPublicKey, dappSecretKey);
+        if (!decrypted) {
+          walletInfoDiv.innerText = "❌ Impossible de déchiffrer le message de Phantom";
+          return;
         }
-      }
 
-      // Attacher l'événement au bouton
-      const connectBtn = document.getElementById('connectButton');
-      if (connectBtn) {
-        connectBtn.addEventListener('click', () => {
-          if (isMobile()) {
-            connectMobile();
-          } else {
-            connectDesktop();
-          }
-        });
-      } else {
-        console.warn("Bouton connectButton introuvable");
+        const payloadStr = new TextDecoder().decode(decrypted);
+        let payload;
+        try { payload = JSON.parse(payloadStr); } catch { payload = { raw: payloadStr }; }
+
+        if (payload?.public_key) {
+          walletInfoDiv.innerText = `Adresse du wallet : ${payload.public_key}\nSession : ${payload.session || "—"}`;
+        } else {
+          walletInfoDiv.innerText = `Payload: ${payloadStr}`;
+        }
+
+        // Nettoie l’URL pour éviter redécryptage au refresh
+        window.history.replaceState({}, document.title, currentPageUrl());
+      } catch (err) {
+        walletInfoDiv.innerText = "Erreur retour Phantom: " + (err?.message || err);
       }
-    });
+    }
+
+    // --- Connexion mobile (deep link) ---
+    function connectMobile() {
+      statusDiv.innerText = "📱 Redirection vers l'app Phantom...";
+      const keyPair = nacl.box.keyPair();
+      const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
+      const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
+      sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
+
+      const appUrl = encodeURIComponent(currentPageUrl());
+      const redirectLink = encodeURIComponent(currentPageUrl());
+
+      const deepLink =
+        `https://phantom.app/ul/v1/connect` +
+        `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+        `&app_url=${appUrl}` +
+        `&redirect_link=${redirectLink}` +
+        `&cluster=mainnet-beta`;
+
+      // Utilise replace pour éviter l'historique supplémentaire
+      window.location.replace(deepLink);
+    }
+
+    // --- Connexion desktop (extension) ---
+    async function connectDesktop() {
+      statusDiv.innerText = "Tentative de connexion via extension...";
+      try {
+        if (window.solana && window.solana.isPhantom) {
+          const resp = await window.solana.connect();
+          statusDiv.innerText = "✅ Connecté via extension";
+          walletInfoDiv.innerText = resp.publicKey.toString();
+
+          // Optionnel : initialiser provider/connection ici si tu utilises Raydium
+          // provider = window.solana;
+          // connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl(network), 'confirmed');
+          // await initRaydium();
+        } else {
+          statusDiv.innerText = "❌ Extension Phantom non détectée (installez Phantom ou utilisez l'app sur mobile)";
+        }
+      } catch (err) {
+        statusDiv.innerText = "Erreur: " + (err?.message || err);
+      }
+    }
+
+    // --- Attacher l'événement au bouton ---
+    if (connectBtn) {
+      connectBtn.addEventListener('click', () => {
+        if (isMobile()) {
+          connectMobile();
+        } else {
+          connectDesktop();
+        }
+      });
+    } else {
+      console.warn("Bouton connectButton introuvable");
+    }
+
+    // --- Traiter immédiatement un retour Phantom si présent ---
+    handlePhantomReturn();
+  });
   </script>
-
-</body>
-</html>
+  
