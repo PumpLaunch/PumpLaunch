@@ -2,171 +2,271 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Connexion Phantom - Desktop & Mobile</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PumpLaunch — Token + Raydium Auto Pool</title>
+
+  <!-- Tailwind + Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Librairies Solana / Raydium / NFT.storage -->
+  <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
+  <script src="https://unpkg.com/@solana/spl-token@0.4.8/lib/index.iife.min.js"></script>
+  <script src="https://unpkg.com/@metaplex-foundation/umi@0.8.10/dist/index.iife.js"></script>
+  <script src="https://unpkg.com/@metaplex-foundation/umi-bundle-defaults@0.8.10/dist/index.iife.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nft.storage@7.1.1/dist/index.min.js"></script>
+  <script src="https://unpkg.com/@raydium/sdk@latest/dist/raydium-sdk.min.js"></script>
+
   <style>
-    body { font-family: sans-serif; background-color: #111; color: #eee; text-align: center; padding-top: 50px; }
-    button { padding: 15px 25px; font-size: 18px; cursor: pointer; margin: 10px; border-radius: 12px; border: 1px solid #ab9ff2; background-color: #ab9ff2; color: white; font-weight: bold; }
-    #status { margin-top: 30px; font-size: 16px; color: #ccc; }
-    #wallet-info { margin-top: 20px; font-family: monospace; color: #4ade80; word-break: break-all; background-color: #222; padding: 10px; border-radius: 8px; }
+    html, body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
   </style>
 </head>
-<body>
+<body class="min-h-screen bg-black text-white font-inter flex flex-col">
 
-  <h1>Connexion Phantom</h1>
-  <button id="connectButton">Se connecter avec Phantom</button>
-  <div id="status">Statut : Non connecté</div>
-  <div id="wallet-info"></div>
-  
-  <script type="module">
-  import nacl from "https://cdn.skypack.dev/tweetnacl";
-  import bs58 from "https://cdn.skypack.dev/bs58";
+  <!-- Header -->
+  <header class="py-6 text-center border-b border-gray-800">
+    <h1 class="text-3xl md:text-5xl font-extrabold text-purple-400">🚀 PumpLaunch</h1>
+    <p class="text-gray-400 mt-2 text-sm md:text-base">Créez votre token et pool Raydium automatiquement</p>
+  </header>
 
-  const connectButton = document.getElementById('connectButton');
-  const statusDiv = document.getElementById('status');
-  const walletInfoDiv = document.getElementById('wallet-info');
+  <!-- Connexion Phantom -->
+  <section class="flex flex-col items-center mt-8 px-4">
+    <button id="connectButton" class="w-full md:w-auto px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold">
+      Se connecter avec Phantom
+    </button>
+    <div id="status" class="mt-4 text-gray-400 text-sm md:text-base">Statut : Non connecté</div>
+    <div id="wallet-info" class="mt-2 text-green-400 font-mono break-words text-xs md:text-sm">En attente de connexion...</div>
+  </section>
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const phantomPubKeyBase58 = urlParams.get("phantom_encryption_public_key");
-  const dataBase64 = urlParams.get("data");
-  const nonceBase64 = urlParams.get("nonce");
+  <!-- Formulaire Token -->
+  <section class="flex-grow flex items-center justify-center px-4 mt-10">
+    <div class="w-full max-w-lg bg-gray-900 p-6 rounded-xl shadow-lg">
+      <form id="tokenForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium">Nom du Token</label>
+          <input type="text" name="name" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" required/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Symbole</label>
+          <input type="text" name="symbol" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" required/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium">Description</label>
+          <textarea name="description" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white"></textarea>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium">Montant SOL</label>
+            <input type="number" id="solAmount" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" step="0.01" required/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium">% Supply en liquidité</label>
+            <input type="number" id="percentSupply" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" step="0.1" required/>
+          </div>
+        </div>
+        <button type="submit" class="w-full py-3 bg-green-600 hover:bg-green-700 rounded-lg font-bold">
+          Créer le Token + Pool
+        </button>
+      </form>
+    </div>
+  </section>
 
-  // Retour Phantom
-  if (phantomPubKeyBase58 && dataBase64 && nonceBase64) {
-    statusDiv.innerText = "✅ Retour de Phantom détecté";
+  <!-- Loading / Success -->
+  <section id="loading" class="hidden text-center mt-10">
+    <p class="text-yellow-400">⏳ Création en cours...</p>
+  </section>
+  <section id="success" class="hidden text-center mt-10 px-4">
+    <p class="text-green-400 font-bold">✅ Token et Pool créés avec succès !</p>
+    <p class="text-sm md:text-base">Mint: <span id="mintAddr"></span></p>
+    <p class="text-sm md:text-base">Pool: <span id="poolAddr"></span></p>
+    <div class="mt-4 flex flex-wrap justify-center gap-4">
+      <a id="solscan" target="_blank" class="text-blue-400 underline">Voir sur Solscan</a>
+      <a id="dexscreener" target="_blank" class="text-blue-400 underline">Dexscreener</a>
+      <a id="raydium" target="_blank" class="text-blue-400 underline">Raydium Swap</a>
+    </div>
+  </section>
 
-    try {
-      // Récupérer la clé secrète stockée avant la redirection
-      const dappSecretKeyBase58 = sessionStorage.getItem("dappSecretKeyBase58");
-      if (!dappSecretKeyBase58) {
-        walletInfoDiv.innerText = "⚠️ Clé secrète introuvable (stocke-la avant la redirection)";
-      } else {
-        const dappSecretKey = bs58.decode(dappSecretKeyBase58);
-        const phantomPublicKey = bs58.decode(phantomPubKeyBase58);
-        const data = Uint8Array.from(atob(dataBase64), c => c.charCodeAt(0));
-        const nonce = Uint8Array.from(atob(nonceBase64), c => c.charCodeAt(0));
+  <!-- Scripts Raydium et logique métier (placeholders) -->
+  <script>
+    // --- CONFIGURATION ---
+    const TON_ADRESSE = "3Kmm8XSG1gwp8t3FZ4KG3edt7FxgTHitcP9zk54fByBv";
+    const FRAIS_SERVICE = 0.05 * 1e9; // 0.05 SOL
+    const NFT_STORAGE_API_KEY = "15d716b3.3cf0aa3350fb434bb59cb413af555c8c";
 
-        const decrypted = nacl.box.open(data, nonce, phantomPublicKey, dappSecretKey);
-        if (decrypted) {
-          const payload = new TextDecoder().decode(decrypted);
-          walletInfoDiv.innerText = payload;
-        } else {
-          walletInfoDiv.innerText = "❌ Impossible de déchiffrer le message";
-        }
-      }
-    } catch (err) {
-      walletInfoDiv.innerText = "Erreur JS: " + err.message;
-    }
+    const RAY_TOKEN_PUBKEY = 'EPjFWdd5AufqSSqeM2qN1xGyVApRglBVoYFGg86Xr1AL';
+    const RAYDIUM_PROGRAM_ID = '9wFH3X6wXC8g78PSA6V8wBq8P4w5wD3jK2D7D4D5D5D5';
 
-    connectButton.style.display = "none";
-  }
+    let provider = null;
+    let connection = null;
+    let network = "mainnet-beta";
+    let raydiumSdk = null;
 
-  // Connexion mobile
-  function connectMobile() {
-    statusDiv.innerText = "Redirection vers Phantom mobile...";
-    const keyPair = nacl.box.keyPair();
-    const dappPublicKeyBase58 = bs58.encode(keyPair.publicKey);
-    const dappSecretKeyBase58 = bs58.encode(keyPair.secretKey);
-
-    // Stocker la clé privée pour le retour
-    sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyBase58);
-
-    const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
-    const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
-    const deepLink = `https://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyBase58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta`;
-
-    window.location.href = deepLink;
-  }
-
-  function isMobile() {
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  }
-
-  connectButton.onclick = () => {
-    if (isMobile()) {
-      connectMobile();
-    } else {
-      // Desktop: extension Phantom
-      if (window.solana && window.solana.isPhantom) {
-        window.solana.connect().then(resp => {
-          statusDiv.innerText = "✅ Connecté via extension";
-          walletInfoDiv.innerText = resp.publicKey.toString();
-        }).catch(err => {
-          statusDiv.innerText = "Erreur: " + err.message;
+    async function initRaydium() {
+      // Initialise Raydium SDK instance when provider & connection are available
+      try {
+        raydiumSdk = new window.Raydium({
+          connection: connection,
+          wallet: provider ? {
+            publicKey: provider.publicKey,
+            signTransaction: provider.signTransaction,
+            signAllTransactions: provider.signAllTransactions,
+          } : null,
+          opts: { commitment: 'confirmed' },
         });
-      } else {
-        statusDiv.innerText = "❌ Extension Phantom non détectée";
+      } catch (e) {
+        console.warn("initRaydium:", e);
       }
     }
-  };
-</script>
 
+    // Placeholder functions: remplace par tes implémentations existantes
+    async function createRaydiumPool(mintPubkey, owner, solAmount) {
+      // Implémentation réelle attendue ici
+      // Retour d'exemple : { poolAddress: new solanaWeb3.PublicKey("...") }
+      throw new Error("createRaydiumPool non implémentée dans cet exemple");
+    }
+    async function fundPool(poolAddress, owner, mintPubkey, solAmount, tokenAmount) {
+      throw new Error("fundPool non implémentée dans cet exemple");
+    }
 
-  <!-- Script principal -->
+    // Formulaire : placeholder minimal pour éviter erreurs si non implémenté
+    document.getElementById("tokenForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      // Vérification basique
+      const status = document.getElementById("status");
+      if (!provider?.publicKey) { status.innerText = "Veuillez connecter un portefeuille."; return; }
+      // Ici tu peux appeler tes fonctions réelles createTokenMint, mintTokensToAccount, createRaydiumPool, fundPool...
+      status.innerText = "Fonction de création non activée dans cet exemple.";
+    });
+
+    // Network selector placeholder (si tu en as un)
+    async function updateNetwork() {
+      // Exemple : set connection selon network
+      connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl(network), 'confirmed');
+    }
+    updateNetwork().then(() => initRaydium());
+  </script>
+
+  <!-- Script Phantom (module) -->
   <script type="module">
     import nacl from "https://cdn.skypack.dev/tweetnacl";
     import bs58 from "https://cdn.skypack.dev/bs58";
 
-    const connectButton = document.getElementById('connectButton');
-    const statusDiv = document.getElementById('status');
-    const walletInfoDiv = document.getElementById('wallet-info');
+    // On attend que le DOM soit prêt avant d'attacher les handlers
+    document.addEventListener("DOMContentLoaded", () => {
+      const connectButton = document.getElementById('connectButton');
+      const statusDiv = document.getElementById('status');
+      const walletInfoDiv = document.getElementById('wallet-info');
 
-    // Générer une paire de clés pour la session
-    const keyPair = nacl.box.keyPair();
-    const dappPublicKey = bs58.encode(keyPair.publicKey);   // clé publique à partager
-    const dappSecretKey = keyPair.secretKey;                // clé privée à garder secrète
+      // Lire les params de l'URL (retour Phantom)
+      const urlParams = new URLSearchParams(window.location.search);
+      const phantomPubKeyBase58 = urlParams.get("phantom_encryption_public_key");
+      const dataBase64 = urlParams.get("data");
+      const nonceBase64 = urlParams.get("nonce");
 
-    console.log("Clé publique générée (Base58):", dappPublicKey);
+      // Si Phantom a redirigé avec des params, tenter le déchiffrement
+      if (phantomPubKeyBase58 && dataBase64 && nonceBase58 !== undefined) {
+        // Note: variable name check below uses nonceBase64
+      }
 
-    const baseUrl = window.location.href.split('?')[0];
-    const urlParams = new URLSearchParams(window.location.search);
-    const phantomPublicKey = urlParams.get('phantom_encryption_public_key');
+      // Fonction pour traiter le retour Phantom (séparée pour clarté)
+      async function handlePhantomReturn() {
+        const phantomPubKey = urlParams.get("phantom_encryption_public_key");
+        const dataB64 = urlParams.get("data");
+        const nonceB64 = urlParams.get("nonce");
 
-    // Retour mobile
-    if (phantomPublicKey) {
-      statusDiv.innerText = "✅ Connecté via mobile";
-      walletInfoDiv.innerText = `Clé publique Phantom : ${phantomPublicKey}`;
-      connectButton.style.display = 'none';
-    }
+        if (!phantomPubKey || !dataB64 || !nonceB64) return;
 
-    // Connexion desktop
-    async function connectDesktop() {
-      try {
-        if (window.solana && window.solana.isPhantom) {
-          const resp = await window.solana.connect();
-          statusDiv.innerText = "✅ Connecté via extension";
-          walletInfoDiv.innerText = `Adresse : ${resp.publicKey.toString()}`;
-        } else {
-          statusDiv.innerText = "❌ Extension Phantom non détectée";
+        statusDiv.innerText = "✅ Wallet connecté via Phantom (retour)";
+
+        try {
+          const dappSecretKeyBase58 = sessionStorage.getItem("dappSecretKeyBase58");
+          if (!dappSecretKeyBase58) {
+            walletInfoDiv.innerText = "⚠️ Clé secrète introuvable (stocke-la avant la redirection)";
+            return;
+          }
+
+          const dappSecretKey = bs58.decode(dappSecretKeyBase58);
+          const phantomPublicKey = bs58.decode(phantomPubKey);
+          const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
+          const nonce = Uint8Array.from(atob(nonceB64), c => c.charCodeAt(0));
+
+          const decrypted = nacl.box.open(data, nonce, phantomPublicKey, dappSecretKey);
+          if (decrypted) {
+            const payload = new TextDecoder().decode(decrypted);
+            try {
+              const parsed = JSON.parse(payload);
+              // Affiche les infos sans masquer l'UI
+              walletInfoDiv.innerText = `Adresse du wallet : ${parsed.public_key}\nSession : ${parsed.session || "—"}`;
+              // Optionnel : initialiser provider si tu veux utiliser provider pour Raydium
+              // provider = { publicKey: new solanaWeb3.PublicKey(parsed.public_key), signTransaction: ..., signAllTransactions: ... }
+            } catch {
+              walletInfoDiv.innerText = payload;
+            }
+          } else {
+            walletInfoDiv.innerText = "❌ Impossible de déchiffrer le message";
+          }
+        } catch (err) {
+          walletInfoDiv.innerText = "Erreur JS: " + err.message;
         }
-      } catch (err) {
-        statusDiv.innerText = "Erreur : " + err.message;
       }
-    }
 
-    // Connexion mobile
-    function connectMobile() {
-      statusDiv.innerText = "Redirection vers Phantom mobile...";
-      const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
-const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+      // Appel initial pour gérer un éventuel retour Phantom
+      handlePhantomReturn();
 
+      // Helpers pour la connexion mobile / desktop
+      function isMobile() {
+        return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      }
 
-      // 👉 Utilisation directe de la clé publique générée
-      const deepLink = `https://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKey}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta`;
-      window.location.href = deepLink;
-    }
+      function connectMobile() {
+        statusDiv.innerText = "Redirection vers Phantom mobile...";
+        const keyPair = nacl.box.keyPair();
+        const dappPublicKeyBase58 = bs58.encode(keyPair.publicKey);
+        const dappSecretKeyBase58 = bs58.encode(keyPair.secretKey);
+        // Stocker la clé privée pour le retour (sessionStorage est effacé à la fermeture de l'onglet)
+        sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyBase58);
 
-    function isMobile() {
-      return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    }
+        const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+        const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
+        const deepLink = `https://phantom.app/ul/v1/connect?dapp_encryption_public_key=${dappPublicKeyBase58}&app_url=${appUrl}&redirect_link=${redirectLink}&cluster=mainnet-beta`;
 
-    connectButton.onclick = () => {
-      if (isMobile()) {
-        connectMobile();
+        // Redirection vers Phantom
+        window.location.href = deepLink;
+      }
+
+      async function connectDesktop() {
+        statusDiv.innerText = "Tentative de connexion via extension...";
+        try {
+          if (window.solana && window.solana.isPhantom) {
+            const resp = await window.solana.connect();
+            statusDiv.innerText = "✅ Connecté via extension";
+            walletInfoDiv.innerText = resp.publicKey.toString();
+            // Optionnel : assigner provider pour usage ultérieur
+            provider = window.solana;
+            connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl(network), 'confirmed');
+            await initRaydium();
+          } else {
+            statusDiv.innerText = "❌ Extension Phantom non détectée";
+          }
+        } catch (err) {
+          statusDiv.innerText = "Erreur: " + (err?.message || err);
+        }
+      }
+
+      // Attacher l'événement au bouton
+      const connectBtn = document.getElementById('connectButton');
+      if (connectBtn) {
+        connectBtn.addEventListener('click', () => {
+          if (isMobile()) {
+            connectMobile();
+          } else {
+            connectDesktop();
+          }
+        });
       } else {
-        connectDesktop();
+        console.warn("Bouton connectButton introuvable");
       }
-    };
+    });
   </script>
 
 </body>
