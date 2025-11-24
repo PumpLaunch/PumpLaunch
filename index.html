@@ -217,33 +217,32 @@
 
       // Connexion mobile (deep link)
       function connectMobile() {
-        try {
-          statusDiv.innerText = "📱 Redirection vers l'app Phantom...";
-          const keyPair = nacl.box.keyPair();
-          const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
-          const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
-          sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
+  try {
+    const keyPair = nacl.box.keyPair();
+    const dappPublicKeyB58 = bs58.encode(keyPair.publicKey);
+    const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
+    sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
 
-          const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
-          const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
-          const deepLink =
-          `https://phantom.app/ul/v1/connect` +
-          `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-          `&app_url=${appUrl}` +
-          `&redirect_link=${redirectLink}` +
-          `&cluster=mainnet-beta`;
-          
+    const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+    const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+    const deepLink =
+      `https://phantom.app/ul/v1/connect` +
+      `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+      `&app_url=${appUrl}` +
+      `&redirect_link=${redirectLink}` +
+      `&cluster=mainnet-beta`;
 
-          console.log("Deep link:", deepLink);
-          console.log("Saved secret:", sessionStorage.getItem("dappSecretKeyBase58"));
+    console.log("Deep link:", deepLink);
+    console.log("Saved secret:", sessionStorage.getItem("dappSecretKeyBase58"));
 
-          // Lancer la redirection
-          window.location.replace(deepLink);
-        } catch (err) {
-          console.error("connectMobile error:", err);
-          statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
-        }
-      }
+    // 👉 Lancer la redirection
+    window.location.replace(deepLink);
+  } catch (err) {
+    console.error("connectMobile error:", err);
+    statusDiv.innerText = "Erreur redirection mobile: " + (err?.message || err);
+  }
+} // ← ferme bien la fonction ici
+      
 
       // Connexion desktop (extension)
       async function connectDesktop() {
