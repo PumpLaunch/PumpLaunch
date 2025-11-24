@@ -295,15 +295,15 @@
           const dappSecretKeyB58 = bs58.encode(keyPair.secretKey);
           sessionStorage.setItem("dappSecretKeyBase58", dappSecretKeyB58);
 
-          const appUrl = encodeURIComponent(currentPageUrl());
-          const redirectLink = encodeURIComponent(currentPageUrl());
-
+          const appUrl = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
+          const redirectLink = encodeURIComponent("https://pumplaunch.github.io/PumpLaunch/");
           const deepLink =
-            `https://phantom.app/ul/v1/connect` +
-            `?dapp_encryption_public_key=${dappPublicKeyB58}` +
-            `&app_url=${appUrl}` +
-            `&redirect_link=${redirectLink}` +
-            `&cluster=mainnet-beta`;
+          `https://phantom.app/ul/v1/connect` +
+          `?dapp_encryption_public_key=${dappPublicKeyB58}` +
+          `&app_url=${appUrl}` +
+          `&redirect_link=${redirectLink}` +
+          `&cluster=mainnet-beta`;
+          
 
           console.log("Deep link:", deepLink);
           console.log("Saved secret:", sessionStorage.getItem("dappSecretKeyBase58"));
